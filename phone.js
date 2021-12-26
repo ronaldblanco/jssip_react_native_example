@@ -1,0 +1,1192 @@
+/**
+ * Sample React Native App
+ * https://github.com/facebook/react-native
+ *
+ * @format
+ * @flow strict-local
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+    SafeAreaView,
+    StyleSheet,
+    ScrollView,
+    View,
+    Text,
+    StatusBar,
+    Button,
+    //audio
+} from 'react-native';
+
+import {
+    Header,
+    LearnMoreLinks,
+    Colors,
+    DebugInstructions,
+    ReloadInstructions,
+} from 'react-native/Libraries/NewAppScreen';
+
+//voip-push-notification
+//#################################################
+import VoipPushNotification from 'react-native-voip-push-notification';
+
+import RNCallKeep from 'react-native-callkeep';
+const optionsCallKeep = {
+    ios: {
+        appName: 'top chats',
+        /*imageName?: string,
+          supportsVideo?: boolean,
+          maximumCallGroups?: string,
+          maximumCallsPerCallGroup?: string,
+          ringtoneSound?: string,*/
+        includesCallsInRecents: true
+    },
+    /*android: {
+      alertTitle: 'Permissions required',
+      alertDescription: 'This application needs to access your phone accounts',
+      cancelButton: 'Cancel',
+      okButton: 'ok',
+      imageName: 'phone_account_icon',
+      additionalPermissions: [PermissionsAndroid.PERMISSIONS.example],
+      // Required to get audio in background when using Android 11
+      foregroundService: {
+        channelId: 'com.company.my',
+        channelName: 'Foreground service for my app',
+        notificationTitle: 'My app is running on background',
+        notificationIcon: 'Path to the resource icon of the notification',
+      }, 
+    }*/
+};
+
+class PushNotification extends React.Component {
+
+    // --- anywhere which is most comfortable and appropriate for you,
+    // --- usually ASAP, ex: in your app.js or at some global scope.
+    componentDidMount(RNCallKeep) {
+
+        // --- NOTE: You still need to subscribe / handle the rest events as usuall.
+        // --- This is just a helper whcih cache and propagate early fired events if and only if for
+        // --- "the native events which DID fire BEFORE js bridge is initialed",
+        // --- it does NOT mean this will have events each time when the app reopened.
+
+
+        // ===== Step 1: subscribe `register` event =====
+        // --- this.onVoipPushNotificationRegistered
+        VoipPushNotification.addEventListener('register', (token) => {
+            // --- send token to your apn provider server
+
+            console.log("VOIP Token:", token);
+            AsyncStorage.setItem('@crm.device.voiptoken', token);
+        });
+
+        // ===== Step 2: subscribe `notification` event =====
+        // --- this.onVoipPushNotificationiReceived
+        VoipPushNotification.addEventListener('notification', (notification) => {
+            // --- when receive remote voip push, register your VoIP client, show local notification ... etc
+            //this.doSomething();
+            //RNCallKeep.displayIncomingCall(notification.uuid, "Incoming Call...");
+            console.log("New VOIP Notification [voip token]:", notification);
+            // --- optionally, if you `addCompletionHandler` from the native side, once you have done the js jobs to initiate a call, call `completion()`
+            VoipPushNotification.onVoipNotificationCompleted(notification.uuid);
+        });
+
+        // ===== Step 3: subscribe `didLoadWithEvents` event =====
+        VoipPushNotification.addEventListener('didLoadWithEvents', (events) => {
+            // --- this will fire when there are events occured before js bridge initialized
+            // --- use this event to execute your event handler manually by event type
+
+            if (!events || !Array.isArray(events) || events.length < 1) {
+                return;
+            }
+            for (let voipPushEvent of events) {
+                let { name, data } = voipPushEvent;
+                if (name === VoipPushNotification.RNVoipPushRemoteNotificationsRegisteredEvent) {
+                    this.onVoipPushNotificationRegistered(data);
+                } else if (name === VoipPushNotification.RNVoipPushRemoteNotificationReceivedEvent) {
+                    this.onVoipPushNotificationiReceived(data);
+                }
+            }
+        });
+
+        // ===== Step 4: register =====
+        // --- it will be no-op if you have subscribed before (like in native side)
+        // --- but will fire `register` event if we have latest cahced voip token ( it may be empty if no token at all )
+        VoipPushNotification.registerVoipToken(); // --- register token
+    }
+
+    // --- unsubscribe event listeners
+    componentWillUnmount() {
+        VoipPushNotification.removeEventListener('didLoadWithEvents');
+        VoipPushNotification.removeEventListener('register');
+        VoipPushNotification.removeEventListener('notification');
+    }
+}
+
+
+
+//#################################################
+
+//react-native-webrtc
+//#################################################
+import {
+    RTCPeerConnection,
+    RTCIceCandidate,
+    RTCSessionDescription,
+    RTCView,
+    MediaStream,
+    MediaStreamTrack,
+    mediaDevices,
+    registerGlobals
+} from 'react-native-webrtc';
+
+window.RTCPeerConnection = window.RTCPeerConnection || RTCPeerConnection;
+window.RTCIceCandidate = window.RTCIceCandidate || RTCIceCandidate;
+window.RTCSessionDescription =
+    window.RTCSessionDescription || RTCSessionDescription;
+window.MediaStream = window.MediaStream || MediaStream;
+window.MediaStreamTrack = window.MediaStreamTrack || MediaStreamTrack;
+window.navigator.mediaDevices = window.navigator.mediaDevices || mediaDevices;
+window.navigator.getUserMedia =
+    window.navigator.getUserMedia || mediaDevices.getUserMedia;
+
+//const configurationRtc = { "iceServers": [{ "url": "wss://fusionpbxclient.teczz.com:7443/ws" }] };
+//const pc = new RTCPeerConnection(configurationRtc);
+
+let isFront = true;
+mediaDevices.enumerateDevices().then(sourceInfos => {
+    //console.log(sourceInfos);
+    let videoSourceId;
+    for (let i = 0; i < sourceInfos.length; i++) {
+        const sourceInfo = sourceInfos[i];
+        if (sourceInfo.kind == "videoinput" && sourceInfo.facing == (isFront ? "front" : "environment")) {
+            videoSourceId = sourceInfo.deviceId;
+        }
+    }
+    mediaDevices.getUserMedia({
+        audio: true,
+        video: {
+            width: 640,
+            height: 480,
+            frameRate: 30,
+            facingMode: (isFront ? "user" : "environment"),
+            deviceId: videoSourceId
+        }
+    })
+        .then(stream => {
+            // Got stream!
+            //console.log("stream webrtc: ", stream);
+        })
+        .catch(error => {
+            // Log error
+            console.error("Error webrtc: ", error);
+        });
+});
+//############################################################
+
+//react-native-jssip
+//############################################################
+import { WebSocketInterface, UA } from "react-native-jssip";
+import { RTCSession } from 'react-native-jssip/lib/RTCSession';
+import { IncomingRequest } from 'react-native-jssip/lib/SIPMessage';
+
+//import {CONSTANTS as CK_CONSTANTS,RNCallKeep} from 'react-native-callkeep';
+
+//import uuid from 'react-native-uuid';
+//uuid.v4(); // ⇨ '11edc52b-2918-4d71-9058-f7285e29d894'
+
+//import {AnswerOptions, AnyListener, Originator, RTCSession, RTCSessionEventMap, TerminateOptions} from 'react-native-jssip/lib/RTCSession'
+// Create our JsSIP instance and run it:
+
+/*RNCallKeep.setup(optionsCallKeep).then(accepted => { 
+  console.log("callkeep setup:", accepted);
+});/*
+ 
+//console.log("UA sessions before call: ", ua._sessions);
+ 
+// Register callbacks to desired call events
+ 
+//let call = ua.call('sip:+13054090817@fusionpbxclient.teczz.com', options);
+ 
+//#################################################
+/*
+ 
+<StatusBar barStyle="dark-content" />
+      <SafeAreaView>
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          style={styles.scrollView}>
+          <View style={styles.body}>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionDescription}>
+                Read the docs to discover what to do next:
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+ 
+*/
+import uuid from 'react-native-uuid';
+import BackgroundTimer from 'react-native-background-timer';
+
+import { useStore } from './utils/context';
+import { newMessages, newIncomingCall, newOutgoingCall, newIncomingCallHandUp, newOutgoingCallHandUp, newInCall, newCallHandUp, holdCall, muteCall,speakerCall, decreaseUnread, initialState } from './reducers/userReducer';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+BackgroundTimer.start();
+
+const Phone = () => {
+
+    const [state, displatch] = useStore();
+
+    //console.log("called Phone fron the notification -> Notification of Incomming call was received!!!!",state && state.user?state.user.ext:'', state && state.user?state.user.ext_password:'', state && state.user?state.user.pbx_domain:'');
+    if (state && state.user && state.user.ext && state.user.ext_password && state.user.pbx_domain /*&& (state.incommingCall || state.outgoingCall)*/) {
+        console.log("LOADING PHONE COMPONENT", state && state.user ? state.user.ext : '', state && state.user ? state.user.ext_password : '', state && state.user ? state.user.pbx_domain : '', state && state.incommingCall, state && state.outgoingCall);
+        //if(state.incommingCall) console.log("called Phone fron the notification -> Notification of Incomming call was received!!!!");
+
+        const configurationRtc = { "iceServers": [{ "url": "wss://" + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ":7443/ws" }] };
+        const pc = new RTCPeerConnection(configurationRtc);
+
+        //let socket = new WebSocketInterface('wss://fusionpbxclient.teczz.com:7443/ws');
+        let socket = new WebSocketInterface('wss://' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ':7443/ws');
+        //console.log("socket: ",socket);
+
+        let configuration = {
+            sockets: [socket],
+            uri: 'sip:' + (state.user && state.user.ext ? state.user.ext : 'noext') + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'),
+            password: state.user && state.user.ext_password ? state.user.ext_password : 'nopass',
+
+        };
+        //console.log("configuration: ",configuration);
+
+        const ua = new UA(configuration);
+
+        const [rtc, setRtc] = useState({});
+        const [stateUuid, setStateUuid] = useState(null);
+        const [myUa, setMyUa] = useState(null);
+
+        const [answered, setAnswered] = useState(false);
+        const [callType, setCallType] = useState(null);
+        const [answeredOnce, setAnsweredOnce] = useState(false);
+
+        const [progres, setProgres] = useState({});
+        const [failed, setFailed] = useState({});
+        const [ended, setEnded] = useState({});
+        const [confirmed, setConfirmed] = useState({});
+
+        const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
+        const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
+        const [calls, setCalls] = useState({}); // callKeep uuid: number
+
+        const [logText, setLog] = useState('');
+        const [inCall, setInCall] = useState(false);
+
+        const [makingCall, setMakingCall] = useState(false);
+        const [myRNCallKeep, setMyRNCallKeep] = useState(null);
+
+        const [callTo, setCallTo] = useState(state.callTo && state.callTo.number ? state.callTo.number : null);
+
+        let eventHandlers = {
+            'progress': (e) => {
+                //console.log('call is in progress');
+                //setProgres(e);
+                //RNCallKeep.updateDisplay(window.stateUuid, 'number', 'number');
+            },
+            'failed': (e) => {
+                console.error('call failed with cause: ' + (JSON.stringify(e)));
+                setFailed(e);
+
+                try { RNCallKeep.endCall(window.stateUuid); }
+                catch (e) { console.log("Error ending the callkeep: " + e.message); }
+
+                try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
+                catch (e) { console.log("Error remote ending the rtc call: " + e.message); }
+                try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
+                catch (e) { console.log("Error remote ending the myUa call: " + e.message); }
+                try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
+                catch (e) { console.log("Error remote ending the ua call: " + e.message); }
+                //window.myUa && window.myUa.terminateSessions ? window.myUa.terminateSessions(options) : "";
+                //ua && ua.terminateSessions ? ua.terminateSessions(options) : "";
+                window.inCall = false;
+                setInCall(false);
+                setMakingCall(false);
+                setCallTo(null);
+
+                setStateUuid(null);
+                window.stateUuid = null;
+                window.fromPushKit = false;
+
+                if (!state.handUp) displatch(newCallHandUp());
+                if (state.inCall) displatch(newInCall());
+                //try {
+                try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
+                try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
+                try { ua && ua.isRegistered() ? ua.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the ua call: " + e.message); }
+                window.myUa = null;
+                setMyUa(null);
+                //} catch (e) {
+                //console.error("Error remotely connecting the call:" + e.message);
+                //}
+            },
+            'ended': (e) => {
+                //console.log('call ended with cause: ' + JSON.stringify(e));
+                setEnded(e/*.data.cause*/);
+                try { RNCallKeep.endCall(window.stateUuid); }
+                catch (e) { console.log("Error ending the callkeep: " + e.message); }
+
+                try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
+                catch (e) { console.log("Error remote ending the rtc call: " + e.message); }
+                try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
+                catch (e) { console.log("Error remote ending the myUa call: " + e.message); }
+                try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
+                catch (e) { console.log("Error remote ending the ua call: " + e.message); }
+                //window.myUa && window.myUa.terminateSessions ? window.myUa.terminateSessions(options) : "";
+                //ua && ua.terminateSessions ? ua.terminateSessions(options) : "";
+                window.inCall = false;
+                setInCall(false);
+                setMakingCall(false);
+                setCallTo(null);
+
+                setStateUuid(null);
+                window.stateUuid = null;
+                window.fromPushKit = false;
+
+                if (!state.handUp) displatch(newCallHandUp());
+                if (state.inCall) displatch(newInCall());
+                //try {
+                try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
+                try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
+                try { ua && ua.isRegistered() ? ua.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the ua call: " + e.message); }
+                window.myUa = null;
+                setMyUa(null);
+                //} catch (e) {
+                //console.error("Error remotely ending the call:" + e.message);
+                //}
+
+            },
+            'confirmed': (e) => {
+                console.log('call confirmed -> [didReceiveStartCallAction]', window.stateUuid);
+                setConfirmed(e);
+                //RNCallKeep.startCall(window.stateUuid, 'number', 'number');
+                //RNCallKeep.updateDisplay(window.stateUuid, 'number', 'number');
+                try { RNCallKeep.setCurrentCallActive(window.stateUuid); }
+                catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
+
+                window.inCall = true;
+                setInCall(true);
+                if (!state.inCall) displatch(newInCall());
+            }
+
+        };
+
+        const uuidV4 = () => {
+            return uuid.v4().toLowerCase();
+        }
+
+        const addCall = (callUUID, number) => {
+            setHeldCalls({ ...heldCalls, [callUUID]: false });
+            setCalls({ ...calls, [callUUID]: number });
+        };
+
+        const removeCall = (callUUID) => {
+            const { [callUUID]: _, ...updated } = calls;
+            const { [callUUID]: __, ...updatedHeldCalls } = heldCalls;
+
+            setCalls(updated);
+            setCalls(updatedHeldCalls);
+        };
+
+        const setCallHeld = (callUUID, held) => {
+            setHeldCalls({ ...heldCalls, [callUUID]: held });
+        };
+
+        const setCallMuted = (callUUID, muted) => {
+            setMutedCalls({ ...mutedCalls, [callUUID]: muted });
+        };
+
+        const log = (text) => {
+            console.info(text);
+            setLog(logText + "\n" + text);
+        };
+
+        //init funtions
+        //############################################
+        const initializeCallKeep = async () => {
+            try {
+                RNCallKeep.setup(optionsCallKeep);
+                RNCallKeep.setAvailable(true);
+
+                voipNotification = new PushNotification;
+                voipNotification.componentDidMount(RNCallKeep);
+            } catch (err) {
+                console.error('initializeCallKeep error:', err.message);
+            }
+
+            /*RNCallKeep.addListener("RNCallKeepDidReceiveStartCallAction", async (event) => {
+                console.log("RNCallKeepDidReceiveStartCallAction events: ",event);
+            }).catch((e)=>{console.error(e)});*/
+
+            // Add RNCallKit Events
+            //RNCallKeep.addEventListener('didReceiveStartCallAction', onNativeCall);
+            //RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+            //RNCallKeep.addEventListener('answerCall', onAnswerCallAction);
+            //RNCallKeep.addEventListener('endCall', onEndCallAction);
+            /*RNCallKeep.addEventListener('didDisplayIncomingCall', onIncomingCallDisplayed);
+            RNCallKeep.addEventListener('didPerformSetMutedCallAction', onToggleMute);
+            RNCallKeep.addEventListener('didPerformDTMFAction', onDTMF);*/
+        };
+
+        const initializeJssip = async () => {
+            ua.on('newRTCSession', (newRtc) => {
+                //console.log('newRTCSession: ', newRtc.session);
+                //console.log("_id:",rtc.session._id);
+                let tmpId = newRtc.session._id;
+                //console.log("tmpIp:",tmpId);
+                //console.log("_ua_contact:",rtc.session._ua._contact);
+                /*console.log("_from_tag:",rtc._from_tag);*/
+                //console.log("_user:",rtc.session._ua._dialogs[tmpId]._remote_uri._user);
+
+                let tempUuid = uuidV4();
+                setRtc(newRtc.session);
+                window.rtc = newRtc.session;
+
+                if (!stateUuid && !window.fromPushKit) setStateUuid(tempUuid);
+                if (!window.stateUuid && !window.fromPushKit) window.stateUuid = tempUuid;
+
+                //console.log("UUID [didReceiveStartCallAction]:",tempUuid);
+
+                setCallType(newRtc.originator);
+                window.originator = newRtc.originator;
+
+                //const id = hola._id;
+                const dialogs = newRtc.session._ua._dialogs;
+                const values = Object.values(dialogs);
+                //console.log("ID:",String(hola._id));
+
+                //RNCallKeep.startCall(tempUuid, number, 'number');
+
+                if (newRtc.originator === 'remote') {
+
+                    let number = values[0]["_remote_uri"]["_user"];
+                    //console.log("Number: ",values[0]["_remote_uri"]["_user"]);
+
+                    if (!window.fromPushKit) {
+                        addCall(tempUuid, number);
+                        console.log("Incoming Call Active [answerCall]: ", tempUuid, number, newRtc.originator);
+                        RNCallKeep.displayIncomingCall(tempUuid, number);
+                    }
+                    else {
+                        addCall(window.stateUuid, number);
+                        console.log("Incoming Call Active [answerCall]: ", window.stateUuid, number, newRtc.originator);
+                        //RNCallKeep.updateDisplay(window.stateUuid, number ,'number');
+                    }
+
+
+                    //console.log('rtc incoming: ',rtc);
+                } else /*if (newRtc.originator === 'local')*/ {
+
+                    //let number = values[0]["_remote_uri"]["_user"];
+                    let number = callTo;
+                    //console.log("Number: ", newRtc.session._ua/*["_remote_uri"]["_user"]*/);
+
+                    addCall(tempUuid, number);
+                    //console.log("Outbound Call Active [didReceiveStartCallAction]:", tempUuid, number, newRtc.originator);
+
+                    setMakingCall(true);
+                    //console.log("Outbound Call Active RNCallKeep",RNCallKeep);
+                    //RNCallKeep.startCall(tempUuid, number, 'number');
+                    ///////RNCallKeep.setCurrentCallActive(tempUuid)
+                    //setTimeout(()=>RNCallKeep.setCurrentCallActive(tempUuid),3000);
+                    //RNCallKeep.displayIncomingCall(/*rtc.session._id*/tempUuid, number); //
+                    //console.log("Outbound Call Active RNCallKeep.startCall:",RNCallKeep.startCall(tempUuid, number, 'number'));
+                    //setTimeout(()=>RNCallKeep.setCurrentCallActive(tempUuid),1000);
+
+                }//setRtc(newRtc.session);
+            });
+            ua.on('sipEvent', (event) => {
+                console.log('Ronald sipEvent:', event.event);
+                //console.log('Ronald RTC State Ended?:',window.rtc?window.rtc.isEnded():"No RTC");
+            })
+
+            //console.log('Ready to make Registration! -> Notification');
+            try {
+
+                ua.start();
+                ua.register();
+
+            } catch (e) {
+                console.error("Start or Registration Error for JsSip:", e.message);
+            }
+
+            //console.log('Registration Completed! -> Notification');
+
+            setMyUa(ua);
+            window.myUa = ua;
+        }
+        //############################
+        const init = async () => {
+            console.log("LOADING PHONE INIT()");
+            try {
+
+                //initializeJssip();
+                await initializeCallKeep();
+
+            } catch (e) {
+                console.error("PHONE->INIT ERROR LOADING!", e.message);
+            }
+
+
+        }
+        const initJssip = () => {
+            console.log("LOADING PHONE INITJSSIP()");
+            try {
+
+                initializeJssip();
+                //await initializeCallKeep();
+
+            } catch (e) {
+                console.error("PHONE->INITJSSIP ERROR LOADING!", e.message);
+            }
+
+        }
+        //############################
+
+        //console.log("UA before: ",ua);
+
+        let options = {
+            'eventHandlers': eventHandlers,
+            'mediaConstraints': { 'audio': true, 'video': false },
+
+        };
+
+        //#########################################
+        const onAnswerCallAction = ({ callUUID }) => {
+            const number = calls[callUUID];
+            log(`answer the call [answerCall] ${callUUID}, number: ${number}`);
+            //console.log("I did answer the call using CallKeep!");
+
+            //RNCallKeep.startCall(callUUID, 'number', 'number');
+
+            //BackgroundTimer.setTimeout(() => {
+            //log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
+            try { RNCallKeep.setCurrentCallActive(callUUID); }
+            catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
+            //}, 2000);
+            //RNCallKeep.answerIncomingCall(callUUID);
+            //makeAnswerCallKeep(rtc);
+            /*!answered ?console.log("I did answer the call using CallKeep!"):"";
+            !RNCallKeep.isCallActive()? RNCallKeep.setCurrentCallActive(callUUID):"";*/
+            //!answered ? setAnswered(true):"";
+
+            try {
+
+                window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
+                window.inCall = true;
+                setInCall(true);
+                //if (!state.inCall) displatch(newInCall());
+
+            } catch (e) {
+                console.error("Error answering the call: " + e.message);
+            }
+
+
+            if (!state.inCall) displatch(newInCall());
+        };
+
+        const onEndCallAction = ({ callUUID }) => {
+            const handle = calls[callUUID];
+            log(`[endCall] ${callUUID}, number: ${handle}`);
+            //console.log("I did end the call using CallKeep!");
+            try { RNCallKeep.endCall(callUUID); }
+            catch (e) { console.log("Error ending the callkeep: " + e.message); }
+
+            try { window.rtc && window.rtc !== {} && window.rtc.terminate ? window.rtc.terminate() : ""; } //Terminate call
+            catch (e) { console.log("Error ending the window.rtc call: " + e.message); }
+
+            window.inCall = false;
+            setInCall(false);
+            setCallType(null);
+            setMakingCall(false);
+
+            setStateUuid(null);
+            window.stateUuid = null;
+            window.fromPushKit = false;
+
+            if (!state.handUp) displatch(newCallHandUp());
+            if (state.inCall) displatch(newInCall());
+            //try {
+            try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
+            try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
+            try { ua && ua.isRegistered() ? ua.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the ua call: " + e.message); }
+            window.myUa = null;
+            setMyUa(null);
+            //} catch (e) {
+            //console.error("Error local ending the call: " + e.message);
+            //}
+
+        };
+
+        const didPerformDTMFAction = ({ callUUID, digits }) => {
+            const number = calls[callUUID];
+            log(`[didPerformDTMFAction] ${callUUID}, number: ${number} (${digits})`);
+        };
+
+        const didReceiveStartCallAction = ({ handle, callUUID = uuidV4(), name = callTo ? callTo : '' }) => {
+            if (!handle) {
+                // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
+                console.error('[didReceiveStartCallAction] with handler undefined');
+                return;
+            }
+            //const callUUID = uuidV4();
+            if (handle) {
+                addCall(callUUID, handle);
+                //setCallTo(handle);
+
+                console.log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
+            }
+
+            //RNCallKeep.startCall(callUUID, /*handle*/'number', 'number');
+            //console.log(`[didReceiveStartCallAction] RNCallKeep: ${RNCallKeep}`);
+            //console.log("[didReceiveStartCallAction] RNCallKeep.startCall(callUUID, /*handle*/'number', 'number', 'number', false);", RNCallKeep.startCall(callUUID, /*handle*/'number', 'number', 'number', false));
+
+            //BackgroundTimer.setTimeout(() => {
+            //log(`[setCurrentCallActive] ${callUUID}, number: ${callTo}`);
+            //RNCallKeep.setCurrentCallActive(callUUID);
+            //}, 2000);
+
+            /*window.myUa ? window.myUa.call('sip:' + callTo + '@fusionpbxclient.teczz.com', options) : '';
+            ua ? ua.call('sip:' + callTo + '@fusionpbxclient.teczz.com', options) : '';
+            window.inCall = true;
+            setInCall(true);
+    
+            displatch(newOutgoingCall());*/
+        };
+
+        const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
+            const number = calls[callUUID];
+            log(`[didPerformSetMutedCallAction] ${callUUID}, number: ${number} (${muted})`);
+
+            setCallMuted(callUUID, muted);
+
+            if (window.rtc && window.rtc !== {} && !state.mute) {
+                try { window.rtc.mute(); }
+                catch (e) { console.log("Error muting the window.rtc call: " + e.message); }
+                //window.hold = true;
+            } else if (window.rtc && window.rtc !== {} && state.mute) {
+                try { window.rtc.unmute(); }
+                catch (e) { console.log("Error unmuting the window.rtc call: " + e.message); }
+                //window.hold = false;
+            }
+        };
+
+        const didToggleHoldCallAction = ({ hold, callUUID }) => {
+            const number = calls[callUUID];
+            log(`[didToggleHoldCallAction] ${callUUID}, number: ${number} (${hold})`);
+
+            setCallHeld(callUUID, hold);
+
+            if (window.rtc && window.rtc !== {} && !state.hold) {
+                try { window.rtc.hold(); }
+                catch (e) { console.log("Error hold for window.rtc call: " + e.message); }
+                //window.hold = true;
+            } else if (window.rtc && window.rtc !== {} && state.hold) {
+                try { window.rtc.unhold(); }
+                catch (e) { console.log("Error unhold for window.rtc call: " + e.message); }
+                //window.hold = false;
+            }
+
+        };
+
+        const didLoadWithEvents = ({ events }) => {
+            //const number = calls[callUUID];
+            console.log(`[didLoadWithEvents] ${events}`);
+
+            //setCallMuted(callUUID, muted);
+        };
+
+        const didReceiveRemoteNotification = () => {
+            console.log("runned didReceiveRemoteNotification");
+        }
+
+        const onIncomingCallDisplayed = ({ error, callUUID, handle, localizedCallerName, hasVideo, fromPushKit, payload }) => {
+            //const number = calls[callUUID];
+            if (fromPushKit) {
+                displatch(newIncomingCall());
+                if(state.callTo) displatch(setCallTo(null));
+                if ((window.myUa && window.myUa.isRegistered()) && (ua && ua.isRegistered()) && (myUa && myUa.isRegistered())) {
+                    //Jssip it is registered
+                } else initJssip(); //Pbx registration
+                if (!window.fromPushKit) window.fromPushKit = true;
+                if (!stateUuid) setStateUuid(callUUID);
+                if (!window.stateUuid) window.stateUuid = callUUID;
+            }
+
+            console.log(`[onIncomingCallDisplayed] from voip token ${callUUID} ${fromPushKit}`);
+
+            //setCallMuted(callUUID, muted);
+        };
+        //#########################################
+
+
+        //init();
+        //ua.start();
+        //ua.register();
+
+        const makeCall = async (RNCallKeep = null) => {
+
+            if (!makingCall) {
+
+                let tempUuid = uuidV4();
+                setStateUuid(tempUuid);
+                window.stateUuid = tempUuid;
+
+                let callKeep = null;
+                if(RNCallKeep) try { 
+                    //console.log("startingCall for callkeep -> RNCallKeep.startCall",RNCallKeep.startCall);
+                    await RNCallKeep.getInitialEvents();
+                    await RNCallKeep.startCall(tempUuid, callTo, callTo, 'generic', false);
+                    
+                    //if(callKeep) console.log("startingCall for callkeep",callKeep);
+                }
+                catch (e) { console.log("Error startingCall for callkeep: " + e.message); }
+
+                try {
+                    //if ((ua && !ua.isRegistered()) || (myUa && !myUa.isRegistered())) {
+                    initJssip();
+                    console.log("Registration to make Call!", callTo);
+                    //setTimeout(() => { console.log("Wait for registration to make Call!",callTo) }, 2000);
+                    //}
+                    setTimeout(() => { ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : '' }, 2000);
+                    //ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : '';
+                    //console.log("After make Call!",callTo,ua.isRegistered());
+                    //setTimeout(() => { displatch(setCallTo(null)) }, 1000);
+                } catch (e) {
+                    console.error("Error making the call: " + e.message);
+                }
+
+                //setTimeout(() => { console.log("startingCall for callkeep",callKeep),2000});
+                console.log("Outbound Call Active makeCall -> [didReceiveStartCallAction]:", tempUuid);
+
+            }
+
+        }
+
+        const makeHandup = (RNCallKeep) => {
+            setAnswered(false);
+            setCallType(null);
+
+            //try {
+            try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
+            catch (e) { console.log("Error local ending the rtc call: " + e.message); }
+            try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
+            catch (e) { console.log("Error local ending the myUa call: " + e.message); }
+            try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
+            catch (e) { console.log("Error local ending the ua call: " + e.message); }
+            //} catch (e) {
+            //console.error("Error local ending the call: " + e.message);
+            //}
+
+            setRtc({});
+
+            console.log("[didReceiveStartCallAction] handup execution", rtc, myUa, ua);
+
+            window.inCall = false;
+            setInCall(false);
+            window.stateUuid ? RNCallKeep.endCall(window.stateUuid) : "";
+            setCallType(null);
+            setCallTo(null);
+
+            setStateUuid(null);
+            window.stateUuid = null;
+            window.fromPushKit = false;
+
+            if (state.incommingCall) displatch(newIncomingCallHandUp());
+            if (state.outgoingCall) displatch(newOutgoingCallHandUp());
+            if (state.handUp) displatch(newCallHandUp());
+            if (state.inCall) displatch(newInCall());
+
+            //try {
+            try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
+            try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
+            try { ua && ua.isRegistered() ? ua.unregister() : ""; }
+            catch (e) { console.log("Error unregistering the ua call: " + e.message); }
+            window.myUa = null;
+            setMyUa(null);
+            //} catch (e) {
+            //console.error("Error unregistering after ending the call: " + e.message);
+            //}
+            //displatch(setCallTo(null));
+        }
+
+        const makeAnswer = (RNCallKeep = null) => {
+            //try {
+
+            try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
+            catch (e) { console.log("Error answering window.rtc: " + e.message); }
+            try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
+            catch (e) { console.log("Error answering rtc: " + e.message); }
+            window.inCall = true;
+            setInCall(true);
+
+            //} catch (e) {
+            //console.error("Error answering the call: " + e.message);
+            //}
+
+            if (!state.inCall) displatch(newInCall());
+        }
+
+        const makeHold = (RNCallKeep = null) => {
+            //try {
+            console.log("make hold", window.rtc && window.rtc.hold ? window.rtc.hold : "", rtc && rtc.hold ? rtc.hold : "");
+            if (state.hold) {
+                try { window.rtc && window.rtc !== {} && window.rtc.hold ? window.rtc.hold() : ""; }
+                catch (e) { console.log("Error holding window.rtc: " + e.message); }
+                try { rtc && rtc !== {} && rtc.hold ? rtc.hold() : ""; }
+                catch (e) { console.log("Error holding rtc: " + e.message); }
+            } else {
+                try { window.rtc && window.rtc !== {} && window.rtc.unhold ? window.rtc.unhold() : ""; }
+                catch (e) { console.log("Error unholding window.rtc: " + e.message); }
+                try { rtc && rtc !== {} && rtc.unhold ? rtc.unhold() : ""; }
+                catch (e) { console.log("Error unholding rtc: " + e.message); }
+            }
+
+            console.log("isOnHold()", window.rtc && window.rtc.isOnHold ? window.rtc.isOnHold() : "", rtc && rtc.isOnHold ? rtc.isOnHold() : "");
+            //window.inCall = true;
+            //setInCall(true);
+
+            //} catch (e) {
+            //console.error("Error holding the call: " + e.message);
+            //}
+
+
+            //if (!state.inCall) displatch(newInCall());
+        }
+
+        const makeMute = (RNCallKeep = null, options = null) => {
+            //try {
+            console.log("make mute", window.rtc && window.rtc.mute ? window.rtc.mute : "", rtc && rtc.mute ? rtc.mute : "");
+
+            try {
+                window.rtc && window.rtc !== {} && window.rtc.mute ? window.rtc.mute() : "";
+            }
+            catch (e) { console.log("Error muting window.rtc: " + e.message); }
+            //if (window.rtc && window.rtc.adjustRecordingSignalVolumen) window.rtc.adjustRecordingSignalVolumen(0);
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+
+            try {
+                rtc && rtc !== {} && rtc.mute ? rtc.mute() : "";
+            }
+            catch (e) { console.log("Error muting rtc: " + e.message); }
+            //if (rtc && rtc.adjustRecordingSignalVolumen) rtc.adjustRecordingSignalVolumen(0);
+            /*console.log("getAudioTracks",window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks():"");
+            window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks().forEach((track) => {
+                track.enabled = false;
+                track.muted = true;
+            }):"";*/
+
+            //window.inCall = true;
+            //setInCall(true);
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+            //} catch (e) {
+            //console.error("Error muting the call: " + e.message);
+            //}
+            //if (!state.inCall) displatch(newInCall());
+        }
+
+        const makeUnMute = (RNCallKeep = null, options = null) => {
+            //try {
+            console.log("make mute", window.rtc && window.rtc.unmute ? window.rtc.unmute : "", rtc && rtc.unmute ? rtc.unmute : "");
+
+            try { window.rtc && window.rtc !== {} && window.rtc.unmute ? window.rtc.unmute() : ""; }
+            catch (e) { console.log("Error unmuting window.rtc: " + e.message); }
+            //if (window.rtc && window.rtc.adjustRecordingSignalVolumen) window.rtc.adjustRecordingSignalVolumen(50);
+
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+
+            try { rtc && rtc !== {} && rtc.unmute ? rtc.unmute() : ""; }
+            catch (e) { console.log("Error unmuting rtc: " + e.message); }
+            //if (rtc && rtc.adjustRecordingSignalVolumen) rtc.adjustRecordingSignalVolumen(50);
+            /*console.log("getAudioTracks",window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks():"");
+            window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks().forEach((track) => {
+                track.enabled = true;
+                track.muted = false;
+            }):"";*/
+
+            //window.inCall = true;
+            //setInCall(true);
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+            //} catch (e) {
+            //console.error("Error muting the call: " + e.message);
+            //}
+            //if (!state.inCall) displatch(newInCall());
+        }
+
+        /*const register = () => {
+            ua.start();
+            ua.register();
+            ua.isRegistered() ? setMyUa(ua) : '';
+        }
+    
+        const unRegister = () => {
+            myUa.isRegistered() ? myUa.unregister() : '';
+            ua.isRegistered() ? ua.unregister() : "";
+            setMyUa({});
+        }
+    
+        const makeAnswerCallKeep = (rtc) => {
+            //if(answered && callType === 'remote' && rtc && !answeredOnce) {
+            setAnsweredOnce(true);
+            rtc ? rtc.answer(options) : "";
+            //}
+        }
+    
+        const makeHandupCallKeep = (rtc, myUa) => {
+            setAnswered(false);
+            setCallType(null);
+            rtc ? rtc.terminate(options) : "";
+            myUa ? myUa.terminateSessions(options) : "";
+            setRtc({});*/
+
+        /*if(!answered && callType === 'remote' && rtc && answeredOnce) {
+          setAnsweredOnce(false);
+          rtc.terminate(options);
+        }
+    }*/
+
+        useEffect(() => {
+            if (!window.myUa) {
+                init();
+                RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+                RNCallKeep.addEventListener('answerCall', onAnswerCallAction);
+                RNCallKeep.addEventListener('endCall', onEndCallAction);
+                RNCallKeep.addEventListener('didDisplayIncomingCall', onIncomingCallDisplayed);
+                RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+                RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
+                RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+
+                RNCallKeep.addEventListener('didLoadWithEvents', didLoadWithEvents);
+
+                //RNCallKeep.addEventListener('didReceiveRemoteNotification', didReceiveRemoteNotification);
+
+                window.RNCallKeep = RNCallKeep;
+                setMyRNCallKeep(RNCallKeep);
+            }
+
+            return () => {
+                RNCallKeep.removeEventListener('answerCall', onAnswerCallAction);
+                RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
+                RNCallKeep.removeEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+                RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+                RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+                RNCallKeep.removeEventListener('endCall', onEndCallAction);
+                RNCallKeep.addEventListener('didDisplayIncomingCall', onIncomingCallDisplayed);
+                RNCallKeep.removeEventListener('didLoadWithEvents', didLoadWithEvents);
+
+                //RNCallKeep.removeEventListener('didReceiveRemoteNotification', didReceiveRemoteNotification);
+            }
+        }, [])
+
+        //useEffect(() => {
+
+        //answered && !answeredOnce && rtc && rtc !== {} ? rtc.answer(options):"";
+        //answered && !answeredOnce? setAnsweredOnce(true):"";
+
+        //}, [inCall, callType])
+
+        useEffect(() => {
+
+            //displatch(newOutgoingCall());
+            if (state.callTo && state.callTo.number && state.callTo.number !== "") {
+                setCallTo(state.callTo.number);
+                /*displatch(setCallTo({
+                    number: "",
+                    name: ""
+                }))*/
+            }
+
+        }, [state.callTo])
+
+        useEffect(() => {
+            if (callTo && !makingCall) {
+                //RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+                //setTimeout(() => makeCall(RNCallKeep), 3000);
+                //RNCallKeep.startCall(stateUuid, callTo, 'number');
+                makeCall(RNCallKeep);
+
+                /*displatch(setCallTo({
+                    number: "",
+                    name: ""
+                }))*/
+
+                return () => {
+
+                    //RNCallKeep.removeEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+
+                }
+            }
+
+        }, [callTo])
+
+        useEffect(() => {
+
+            if (state.handUp) {
+
+                /*RNCallKeep.endCall(stateUuid);
+    
+                if (!inCall) { //Reject call
+                    rtc && rtc !== {} ? rtc.answer(options) : "";
+                    setTimeout(() => rtc && rtc !== {} ? rtc.terminate() : "", 2000);
+                } else rtc && rtc !== {} ? rtc.terminate() : ""; //Terminate call
+    
+                setInCall(false);
+                setCallType(null);
+    
+                if (state.inCall) displatch(newInCall());*/
+
+                makeHandup(RNCallKeep);
+
+            }
+
+        }, [state.handUp])
+
+        useEffect(() => {
+
+            if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+                makeAnswer();
+
+            }
+
+        }, [state.answer]);
+
+        useEffect(() => {
+
+            //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+            makeHold();
+
+            //}
+
+        }, [state.hold]);
+
+        useEffect(() => {
+
+            //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+            if (state.mute) makeMute(null, null);
+            else makeUnMute(null, null);
+
+            //}
+
+        }, [state.mute])
+
+        //console.log("Before the Phone return -> Notification");
+
+        return (
+            <>
+                {/*<Audio id="calling" src="/calling.mp3" preload="auto"></Audio>
+
+                <Audio id="0" src="/phone_keys/wav_0.wav" preload="auto"></Audio>
+                <Audio id="1" src="/phone_keys/wav_1.wav" preload="auto"></Audio>
+                <Audio id="2" src="/phone_keys/wav_2.wav" preload="auto"></Audio>
+                <Audio id="3" src="/phone_keys/wav_3.wav" preload="auto"></Audio>
+                <Audio id="4" src="/phone_keys/wav_4.wav" preload="auto"></Audio>
+                <Audio id="5" src="/phone_keys/wav_5.wav" preload="auto"></Audio>
+                <Audio id="6" src="/phone_keys/wav_6.wav" preload="auto"></Audio>
+                <Audio id="7" src="/phone_keys/wav_7.wav" preload="auto"></Audio>
+                <Audio id="8" src="/phone_keys/wav_8.wav" preload="auto"></Audio>
+                <Audio id="9" src="/phone_keys/wav_9.wav" preload="auto"></Audio>
+                <Audio id="star" src="/phone_keys/wav_star.wav" preload="auto"></Audio>
+        <Audio id="hash" src="/phone_keys/wav_hash.wav" preload="auto"></Audio>*/}
+
+
+            </>
+        );
+        return (
+            <>
+                <SafeAreaView>
+                    <Text>PHONE!</Text>
+                    {!window.inCall && <Button title="Call to Number" onPress={() => {
+                        /*ua.call('sip:+13054090817@fusionpbxclient.teczz.com', options);*/
+                        makeCall()
+                    }} />}
+                    {window.inCall && <Button title="HandUp" onPress={() => {
+                        makeHandup()
+                    }} />}
+                    {/*<Button title="Connet" onPress={() => {
+                    register()
+                }} />
+                <Button title="Disconnet" onPress={() => {
+                    unRegister()
+                }} />*/}
+                    {/*!window.inCall && window.originator === 'remote' && <Button title="Answer" onPress={() => {
+                    if(rtc){
+                    rtc.answer(options);
+                    window.inCall = true;
+                    setInCall(true);
+                    RNCallKeep.startCall(window.stateUuid, 'number', 'number');
+                    RNCallKeep.setCurrentCallActive(window.stateUuid);
+                    }}} />*/}
+                    {/*window.inCall && (<><Button title="Hold" onPress={() => rtc ? rtc.hold() : ''} />
+                <Button title="Un Hold" onPress={() => rtc ? rtc.unhold() : ''} /></>)*/}
+                </SafeAreaView>
+
+            </>
+        );
+
+    } else return null;
+
+};
+
+const styles = StyleSheet.create({
+    scrollView: {
+        backgroundColor: Colors.lighter,
+    },
+    engine: {
+        position: 'absolute',
+        right: 0,
+    },
+    body: {
+        backgroundColor: Colors.white,
+    },
+    sectionContainer: {
+        marginTop: 32,
+        paddingHorizontal: 24,
+    },
+    sectionTitle: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: Colors.black,
+    },
+    sectionDescription: {
+        marginTop: 8,
+        fontSize: 18,
+        fontWeight: '400',
+        color: Colors.dark,
+    },
+    highlight: {
+        fontWeight: '700',
+    },
+    footer: {
+        color: Colors.dark,
+        fontSize: 12,
+        fontWeight: '600',
+        padding: 4,
+        paddingRight: 12,
+        textAlign: 'right',
+    },
+});
+
+export default Phone;

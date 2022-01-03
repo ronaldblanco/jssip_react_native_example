@@ -8,7 +8,7 @@
 #import "RNVoipPushNotificationManager.h"      /* <------ add this line */
 
 #import <RNCallKeep/RNCallKeep.h>      /* <------ add this line */
-//#import "RNCallKit.h"   /* <------ add this line */
+////#import "RNCallKit.h"   /* <------ add this line */
 
 #import <UserNotifications/UserNotifications.h>
 #import <RNCPushNotificationIOS.h>
@@ -127,8 +127,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
   // --- Retrieve information from your voip push payload
   NSString *uuid = [[[NSUUID UUID] UUIDString] lowercaseString];
-  NSString *callerName = payload.dictionaryPayload[@"aps"][@"callerName"];
-  NSString *handle = payload.dictionaryPayload[@"aps"][@"handle"];
+  NSString *callerName = payload.dictionaryPayload[@"callerName"];
+  NSString *handle = payload.dictionaryPayload[@"handle"];
+  //NSString *callerName = payload.dictionaryPayload[@"aps"][@"callerName"];
+  //NSString *handle = payload.dictionaryPayload[@"aps"][@"handle"];
   //NSString *callerName = @"callerName";
   //NSString *handle = @"handle";
   //NSDictionary *extra = payload.dictionaryPayload;
@@ -136,10 +138,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   //NSString *handle = payload.dictionaryPayload[@"handle"];
 
   // --- this is optional, only required if you want to call `completion()` on the js side
-  //[RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
+  [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
 
   // --- Process the received push
-  //[RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
+  [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
   //return [RNCallKeep];
   // --- You should make sure to report to callkit BEFORE execute `completion()`
   [RNCallKeep reportNewIncomingCall: uuid

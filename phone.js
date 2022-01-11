@@ -230,26 +230,55 @@ import uuid from 'react-native-uuid';
 import BackgroundTimer from 'react-native-background-timer';
 
 import { useStore } from './utils/context';
-import { newMessages, newIncomingCall, newOutgoingCall, newIncomingCallHandUp, newOutgoingCallHandUp, newInCall, newCallHandUp, holdCall, muteCall,speakerCall, decreaseUnread, initialState } from './reducers/userReducer';
+import { newMessages, newIncomingCall, newOutgoingCall, setGoHome, setPhone, setCallFrom, setDtmf, newIncomingCallHandUp, newOutgoingCallHandUp, newInCall, newCallHandUp, holdCall, muteCall, speakerCall, decreaseUnread, initialState } from './reducers/userReducer';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-BackgroundTimer.start();
+//BackgroundTimer.start();
+//const getPhoneState = async () => {
+//return await AsyncStorage.getItem('@crm.device.phone');
+//}
+//const phoneState = getPhoneState();
+/*const updatePhoneState = async () => {
+    const [state, displatch] = useStore();
+    const [phone, setPhone] = useState(false);
+
+    const phoneState = await getPhoneState();
+
+    console.log("updatePhoneState: ",phoneState._W);
+
+    if(phoneState && phoneState._W && phoneState._W === '1' && state && state.user) setPhone(true);//displatch(setPhone(true));
+    else if(phoneState && phoneState._W && phoneState._W === '0' && state && state.user) setPhone(false);//displatch(setPhone(false));
+
+    return phone;
+}*/
+//updatePhoneState();
+//const phoneState = updatePhoneState();
+
+//console.log("phoneState: ",phoneState._W);
 
 const Phone = () => {
 
     const [state, displatch] = useStore();
 
+    //const [phone, setPhone] = useState(false);
+
+    //console.log("phoneState: ",phoneState._U);
+
+
+    //if(phoneState && phoneState._W && phoneState._W === '1' && state && state.user) setPhone(true);//displatch(setPhone(true));
+    //else if(phoneState && phoneState._W && phoneState._W === '0' && state && state.user) setPhone(false); //displatch(setPhone(false));
+
     //console.log("called Phone fron the notification -> Notification of Incomming call was received!!!!",state && state.user?state.user.ext:'', state && state.user?state.user.ext_password:'', state && state.user?state.user.pbx_domain:'');
-    if (state && state.user && state.user.ext && state.user.ext_password && state.user.pbx_domain /*&& (state.incommingCall || state.outgoingCall)*/) {
+    if (state && state.user && state.user.ext && state.user.ext_password && state.user.pbx_domain && state.phone /*&& (state.incommingCall || state.outgoingCall)*/) {
         console.log("LOADING PHONE COMPONENT", state && state.user ? state.user.ext : '', state && state.user ? state.user.ext_password : '', state && state.user ? state.user.pbx_domain : '', state && state.incommingCall, state && state.outgoingCall);
         //if(state.incommingCall) console.log("called Phone fron the notification -> Notification of Incomming call was received!!!!");
 
-        const configurationRtc = { "iceServers": [{ "url": "wss://" + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ":7443/ws" }] };
+        const configurationRtc = { "iceServers": [{ "url": "wss://" + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ":" + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + "/ws" }] };
         const pc = new RTCPeerConnection(configurationRtc);
 
         //let socket = new WebSocketInterface('wss://fusionpbxclient.teczz.com:7443/ws');
-        let socket = new WebSocketInterface('wss://' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ':7443/ws');
+        let socket = new WebSocketInterface('wss://' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ':' + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + '/ws');
         //console.log("socket: ",socket);
 
         let configuration = {
@@ -286,6 +315,8 @@ const Phone = () => {
         const [myRNCallKeep, setMyRNCallKeep] = useState(null);
 
         const [callTo, setCallTo] = useState(state.callTo && state.callTo.number ? state.callTo.number : null);
+        const [muteCall, setMuteCall] = useState(false);
+        const [holdCall, setHoldCall] = useState(false);
 
         let eventHandlers = {
             'progress': (e) => {
@@ -294,7 +325,7 @@ const Phone = () => {
                 //RNCallKeep.updateDisplay(window.stateUuid, 'number', 'number');
             },
             'failed': (e) => {
-                console.error('call failed with cause: ' + (JSON.stringify(e)));
+                //console.error('call failed with cause: ' + (JSON.stringify(e)));
                 setFailed(e);
 
                 try { RNCallKeep.endCall(window.stateUuid); }
@@ -328,9 +359,8 @@ const Phone = () => {
                 catch (e) { console.log("Error unregistering the ua call: " + e.message); }
                 window.myUa = null;
                 setMyUa(null);
-                //} catch (e) {
-                //console.error("Error remotely connecting the call:" + e.message);
-                //}
+                
+                window.rtc = null;
             },
             'ended': (e) => {
                 //console.log('call ended with cause: ' + JSON.stringify(e));
@@ -366,9 +396,8 @@ const Phone = () => {
                 catch (e) { console.log("Error unregistering the ua call: " + e.message); }
                 window.myUa = null;
                 setMyUa(null);
-                //} catch (e) {
-                //console.error("Error remotely ending the call:" + e.message);
-                //}
+                
+                window.rtc = null;
 
             },
             'confirmed': (e) => {
@@ -520,6 +549,9 @@ const Phone = () => {
 
                 ua.start();
                 ua.register();
+                /*setTimeout(() => {
+                    ua.register();
+                }, 2000);*/
 
             } catch (e) {
                 console.error("Start or Registration Error for JsSip:", e.message);
@@ -544,11 +576,11 @@ const Phone = () => {
 
 
         }
-        const initJssip = () => {
+        const initJssip = async () => {
             console.log("LOADING PHONE INITJSSIP()");
             try {
 
-                initializeJssip();
+                await initializeJssip();
                 //await initializeCallKeep();
 
             } catch (e) {
@@ -574,30 +606,43 @@ const Phone = () => {
 
             //RNCallKeep.startCall(callUUID, 'number', 'number');
 
-            //BackgroundTimer.setTimeout(() => {
-            //log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
-            try { RNCallKeep.setCurrentCallActive(callUUID); }
-            catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
-            //}, 2000);
-            //RNCallKeep.answerIncomingCall(callUUID);
-            //makeAnswerCallKeep(rtc);
-            /*!answered ?console.log("I did answer the call using CallKeep!"):"";
-            !RNCallKeep.isCallActive()? RNCallKeep.setCurrentCallActive(callUUID):"";*/
-            //!answered ? setAnswered(true):"";
+            if (!window.rtc || window.rtc === {}) setTimeout(() => {
+                console.log("wait for window.rtc",window.rtc);
 
-            try {
+                if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
+                    catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
 
-                window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
-                window.inCall = true;
-                setInCall(true);
-                //if (!state.inCall) displatch(newInCall());
+                if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
 
-            } catch (e) {
-                console.error("Error answering the call: " + e.message);
+                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
+                    window.inCall = true;
+                    setInCall(true);
+                    if (!state.inCall) displatch(newInCall());
+
+                } catch (e) {
+                    console.error("Error answering the call: " + e.message);
+                }
+
+            }, 3000);
+            else {
+                console.log("no wait for window.rtc",window.rtc);
+                if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
+                    catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
+
+                if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
+
+                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
+                    window.inCall = true;
+                    setInCall(true);
+                    if (!state.inCall) displatch(newInCall());
+
+                } catch (e) {
+                    console.error("Error answering the call: " + e.message);
+                }
+
             }
 
-
-            if (!state.inCall) displatch(newInCall());
+            //if (!state.inCall) displatch(newInCall());
         };
 
         const onEndCallAction = ({ callUUID }) => {
@@ -630,15 +675,19 @@ const Phone = () => {
             catch (e) { console.log("Error unregistering the ua call: " + e.message); }
             window.myUa = null;
             setMyUa(null);
-            //} catch (e) {
-            //console.error("Error local ending the call: " + e.message);
-            //}
+            
+            window.rtc = null;
 
         };
 
         const didPerformDTMFAction = ({ callUUID, digits }) => {
             const number = calls[callUUID];
             log(`[didPerformDTMFAction] ${callUUID}, number: ${number} (${digits})`);
+
+            try {
+                window.rtc && window.rtc !== {} && window.rtc.sendDTMF ? window.rtc.sendDTMF(digits, options) : "";
+            }
+            catch (e) { console.log("Error sendingDTMF window.rtc: " + e.message); }
         };
 
         const didReceiveStartCallAction = ({ handle, callUUID = uuidV4(), name = callTo ? callTo : '' }) => {
@@ -722,10 +771,14 @@ const Phone = () => {
             //const number = calls[callUUID];
             if (fromPushKit) {
                 displatch(newIncomingCall());
-                if(state.callTo) displatch(setCallTo(null));
+                displatch(setCallFrom({
+                    number: handle,
+                    name: localizedCallerName
+                }))
+                if (state.callTo) displatch(setCallTo(null));
                 if ((window.myUa && window.myUa.isRegistered()) && (ua && ua.isRegistered()) && (myUa && myUa.isRegistered())) {
                     //Jssip it is registered
-                } else initJssip(); //Pbx registration
+                } else { initJssip(); } //Pbx registration
                 if (!window.fromPushKit) window.fromPushKit = true;
                 if (!stateUuid) setStateUuid(callUUID);
                 if (!window.stateUuid) window.stateUuid = callUUID;
@@ -746,27 +799,45 @@ const Phone = () => {
 
             if (!makingCall) {
 
+                //displatch(setGoHome(false));
+
                 let tempUuid = uuidV4();
                 setStateUuid(tempUuid);
                 window.stateUuid = tempUuid;
 
                 let callKeep = null;
-                if(RNCallKeep) try { 
+                if (RNCallKeep) try {
                     //console.log("startingCall for callkeep -> RNCallKeep.startCall",RNCallKeep.startCall);
                     await RNCallKeep.getInitialEvents();
                     await RNCallKeep.startCall(tempUuid, callTo, callTo, 'generic', false);
-                    
+
                     //if(callKeep) console.log("startingCall for callkeep",callKeep);
                 }
-                catch (e) { console.log("Error startingCall for callkeep: " + e.message); }
+                    catch (e) { console.log("Error startingCall for callkeep: " + e.message); }
 
                 try {
                     //if ((ua && !ua.isRegistered()) || (myUa && !myUa.isRegistered())) {
-                    initJssip();
+                    await initJssip();
                     console.log("Registration to make Call!", callTo);
                     //setTimeout(() => { console.log("Wait for registration to make Call!",callTo) }, 2000);
                     //}
-                    setTimeout(() => { ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : '' }, 2000);
+                    if (ua && ua.call) {
+                        try {
+                            //ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options);
+                            //console.log("Call was done now after Registration to make Call");
+                            setTimeout(() => {
+                                ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : ''
+                                console.log("Registration to make Call -> Call was done now!");
+                            }, 4000);
+                        }
+                        catch (e) {
+                            console.error("Error making the call -> ua.call: " + e.message);
+                        }
+                    }
+                    /*setTimeout(() => { 
+                        ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : '' 
+                        console.log("Registration to make Call -> Call was done now!");
+                    }, 2000);*/
                     //ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : '';
                     //console.log("After make Call!",callTo,ua.isRegistered());
                     //setTimeout(() => { displatch(setCallTo(null)) }, 1000);
@@ -796,6 +867,8 @@ const Phone = () => {
             //console.error("Error local ending the call: " + e.message);
             //}
 
+            //if (!state.goHome && state.inCall && state.handUp /*&& (state.incommingCall || state.outgoingCall)*/) displatch(setGoHome(true));
+
             setRtc({});
 
             console.log("[didReceiveStartCallAction] handup execution", rtc, myUa, ua);
@@ -824,40 +897,45 @@ const Phone = () => {
             catch (e) { console.log("Error unregistering the ua call: " + e.message); }
             window.myUa = null;
             setMyUa(null);
-            //} catch (e) {
-            //console.error("Error unregistering after ending the call: " + e.message);
-            //}
-            //displatch(setCallTo(null));
+            
+            window.rtc = null;
+
         }
 
         const makeAnswer = (RNCallKeep = null) => {
             //try {
 
-            try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
-            catch (e) { console.log("Error answering window.rtc: " + e.message); }
-            try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
-            catch (e) { console.log("Error answering rtc: " + e.message); }
-            window.inCall = true;
-            setInCall(true);
+            if (window.rtc && window.rtc !== {} && window.rtc.answer) try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
+                catch (e) { console.log("Error answering window.rtc: " + e.message); }
+            if (rtc && rtc !== {} && rtc.answer) try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
+                catch (e) { console.log("Error answering rtc: " + e.message); }
+
+            if ((window.rtc && window.rtc !== {} && window.rtc.answer) || (rtc && rtc !== {} && rtc.answer)) {
+
+                window.inCall = true;
+                setInCall(true);
+                if (!state.inCall) displatch(newInCall());
+
+            }
 
             //} catch (e) {
             //console.error("Error answering the call: " + e.message);
             //}
 
-            if (!state.inCall) displatch(newInCall());
+
         }
 
         const makeHold = (RNCallKeep = null) => {
             //try {
             console.log("make hold", window.rtc && window.rtc.hold ? window.rtc.hold : "", rtc && rtc.hold ? rtc.hold : "");
-            if (state.hold) {
-                try { window.rtc && window.rtc !== {} && window.rtc.hold ? window.rtc.hold() : ""; }
-                catch (e) { console.log("Error holding window.rtc: " + e.message); }
+            if (holdCall) {
+                //try { window.rtc && window.rtc !== {} && window.rtc.hold ? window.rtc.hold() : ""; }
+                //catch (e) { console.log("Error holding window.rtc: " + e.message); }
                 try { rtc && rtc !== {} && rtc.hold ? rtc.hold() : ""; }
                 catch (e) { console.log("Error holding rtc: " + e.message); }
             } else {
-                try { window.rtc && window.rtc !== {} && window.rtc.unhold ? window.rtc.unhold() : ""; }
-                catch (e) { console.log("Error unholding window.rtc: " + e.message); }
+                //try { window.rtc && window.rtc !== {} && window.rtc.unhold ? window.rtc.unhold() : ""; }
+                //catch (e) { console.log("Error unholding window.rtc: " + e.message); }
                 try { rtc && rtc !== {} && rtc.unhold ? rtc.unhold() : ""; }
                 catch (e) { console.log("Error unholding rtc: " + e.message); }
             }
@@ -878,17 +956,19 @@ const Phone = () => {
             //try {
             console.log("make mute", window.rtc && window.rtc.mute ? window.rtc.mute : "", rtc && rtc.mute ? rtc.mute : "");
 
-            try {
+            /*try {
                 window.rtc && window.rtc !== {} && window.rtc.mute ? window.rtc.mute() : "";
             }
             catch (e) { console.log("Error muting window.rtc: " + e.message); }
             //if (window.rtc && window.rtc.adjustRecordingSignalVolumen) window.rtc.adjustRecordingSignalVolumen(0);
-            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");*/
 
             try {
-                rtc && rtc !== {} && rtc.mute ? rtc.mute() : "";
+                rtc && rtc !== {} && rtc.mute ? rtc.mute({ audio: true }) : "";
+                rtc && rtc !== {} && rtc.renegotiate ? rtc.renegotiate({ offerToReceiveAudio: false }, (r) => { console.log("mute using renegotiation:", r) }) : "";
             }
             catch (e) { console.log("Error muting rtc: " + e.message); }
+            if (RNCallKeep && stateUuid) RNCallKeep.setMutedCall(stateUuid, true);
             //if (rtc && rtc.adjustRecordingSignalVolumen) rtc.adjustRecordingSignalVolumen(0);
             /*console.log("getAudioTracks",window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks():"");
             window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks().forEach((track) => {
@@ -909,14 +989,18 @@ const Phone = () => {
             //try {
             console.log("make mute", window.rtc && window.rtc.unmute ? window.rtc.unmute : "", rtc && rtc.unmute ? rtc.unmute : "");
 
-            try { window.rtc && window.rtc !== {} && window.rtc.unmute ? window.rtc.unmute() : ""; }
+            /*try { window.rtc && window.rtc !== {} && window.rtc.unmute ? window.rtc.unmute() : ""; }
             catch (e) { console.log("Error unmuting window.rtc: " + e.message); }
             //if (window.rtc && window.rtc.adjustRecordingSignalVolumen) window.rtc.adjustRecordingSignalVolumen(50);
 
-            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+            console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");*/
 
-            try { rtc && rtc !== {} && rtc.unmute ? rtc.unmute() : ""; }
+            try {
+                rtc && rtc !== {} && rtc.unmute ? rtc.unmute({ audio: true }) : "";
+                rtc && rtc !== {} && rtc.renegotiate ? rtc.renegotiate({ offerToReceiveAudio: true }, (r) => { console.log("mute using renegotiation:", r) }) : "";
+            }
             catch (e) { console.log("Error unmuting rtc: " + e.message); }
+            if (RNCallKeep && stateUuid) RNCallKeep.setMutedCall(stateUuid, false);
             //if (rtc && rtc.adjustRecordingSignalVolumen) rtc.adjustRecordingSignalVolumen(50);
             /*console.log("getAudioTracks",window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks():"");
             window.MediaStream && window.MediaStream.getAudioTracks?window.MediaStream.getAudioTracks().forEach((track) => {
@@ -927,6 +1011,32 @@ const Phone = () => {
             //window.inCall = true;
             //setInCall(true);
             console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+            //} catch (e) {
+            //console.error("Error muting the call: " + e.message);
+            //}
+            //if (!state.inCall) displatch(newInCall());
+        }
+
+        const makeSendDTMF = (RNCallKeep = null, options = null, tones) => {
+            //try {
+            console.log("make send of DTMF", window.rtc && window.rtc.sendDTMF ? window.rtc.sendDTMF : "", rtc && rtc.sendDTMF ? rtc.sendDTMF : "");
+
+            /*try {
+                window.rtc && window.rtc !== {} && window.rtc.sendDTMF ? window.rtc.sendDTMF(tones, options) : "";
+            }
+            catch (e) { console.log("Error sendingDTMF window.rtc: " + e.message); }*/
+            //if (window.rtc && window.rtc.adjustRecordingSignalVolumen) window.rtc.adjustRecordingSignalVolumen(0);
+            //console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
+
+            try {
+                rtc && rtc !== {} && rtc.sendDTMF ? rtc.sendDTMF(tones, options) : "";
+            }
+            catch (e) { console.log("Error sendingDTMF rtc: " + e.message); }
+            //if (rtc && rtc.adjustRecordingSignalVolumen) rtc.adjustRecordingSignalVolumen(0);
+
+            //window.inCall = true;
+            //setInCall(true);
+            //console.log("isMuted()", window.rtc && window.rtc.isMuted ? window.rtc.isMuted().audio : "", rtc && rtc.isMuted ? rtc.isMuted().audio : "");
             //} catch (e) {
             //console.error("Error muting the call: " + e.message);
             //}
@@ -996,6 +1106,7 @@ const Phone = () => {
 
                 //RNCallKeep.removeEventListener('didReceiveRemoteNotification', didReceiveRemoteNotification);
             }
+            //console.log("phoneState: ",phoneState);
         }, [])
 
         //useEffect(() => {
@@ -1052,8 +1163,9 @@ const Phone = () => {
     
                 setInCall(false);
                 setCallType(null);
-    
+                
                 if (state.inCall) displatch(newInCall());*/
+                console.log("goHome was set to false->makeHandup: state.goHome && state.inCall && state.handUp", state.goHome, state.inCall, state.handUp);
 
                 makeHandup(RNCallKeep);
 
@@ -1075,7 +1187,9 @@ const Phone = () => {
 
             //if (state.answer && rtc && rtc !== {} && rtc.answer) {
 
-            makeHold();
+            //makeHold();
+            if (state.hold) setHoldCall(true);
+            else setHoldCall(false);
 
             //}
 
@@ -1085,17 +1199,72 @@ const Phone = () => {
 
             //if (state.answer && rtc && rtc !== {} && rtc.answer) {
 
-            if (state.mute) makeMute(null, null);
-            else makeUnMute(null, null);
+            makeHold();
+
+            //}
+
+        }, [holdCall]);
+
+        useEffect(() => {
+
+            //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+            if (state.mute) setMuteCall(true);
+            else setMuteCall(false);
 
             //}
 
         }, [state.mute])
 
+        useEffect(() => {
+
+            //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+            if (muteCall) makeMute(RNCallKeep, options);
+            else makeUnMute(RNCallKeep, options);
+
+            //}
+
+        }, [muteCall])
+
+        useEffect(() => {
+
+            //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+            if (state.dtmf) {
+                makeSendDTMF(null, options, state.dtmf);
+                displatch(setDtmf(null));
+            }
+            //else makeUnMute(null, null);
+
+            //}
+
+        }, [state.dtmf])
+
+        //useEffect(() => {
+
+        //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+
+        //if (!state.goHome && !inCall) displatch(setGoHome(true));
+        //else makeUnMute(null, options);
+
+        //}
+
+        //}, [inCall])
+
         //console.log("Before the Phone return -> Notification");
 
         return (
             <>
+                {/*
+                    window.inCall && (
+                        <>
+
+                            <Button title="Hold" onPress={() => { window.rtc && window.rtc.hold? window.rtc.hold() : '' }} />
+                            <Button title="Un Hold" onPress={() => { window.rtc && window.rtc.unhold ? window.rtc.unhold() : '' }} />
+
+                        </>
+                    )*/}
                 {/*<Audio id="calling" src="/calling.mp3" preload="auto"></Audio>
 
                 <Audio id="0" src="/phone_keys/wav_0.wav" preload="auto"></Audio>

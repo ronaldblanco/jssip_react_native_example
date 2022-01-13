@@ -596,6 +596,13 @@ const Phone = () => {
             'eventHandlers': eventHandlers,
             'mediaConstraints': { 'audio': true, 'video': false },
 
+            /*'pcConfig': { // to much delay, but fix: "488 Incompatible SDP" when trying to send invite request to FreeSwitch with jssip library
+                'iceServers': [
+                    {
+                        'urls': ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.swaypc.com:3478']
+                    }
+                 ]
+             }*/
         };
 
         //#########################################

@@ -785,6 +785,11 @@ const Phone = () => {
             }
 
             console.log(`[onIncomingCallDisplayed] from voip token ${callUUID} ${fromPushKit}`);
+            
+            setTimeout(() => {
+                if (!inCall) try { RNCallKeep.endCall(callUUID); }
+                    catch (e) { console.log("Error ending the callkeep: " + e.message); }
+            }, 30000);
 
             //setCallMuted(callUUID, muted);
         };

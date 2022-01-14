@@ -481,6 +481,16 @@ const Phone = () => {
                 //console.log("_ua_contact:",rtc.session._ua._contact);
                 /*console.log("_from_tag:",rtc._from_tag);*/
                 //console.log("_user:",rtc.session._ua._dialogs[tmpId]._remote_uri._user);
+                
+                newRtc.session.on('icecandidate', (event) => {
+                    console.log('Trying Stun Server Data:', JSON.stringify(event.candidate).indexOf("typ srflx"),JSON.stringify(event.candidate));
+                    if (JSON.stringify(event.candidate).indexOf("typ srflx") !== -1 /*&&
+                        event.candidate.relatedAddress !== null &&
+                        event.candidate.relatedPort !== null*/) {
+                        console.log('Valid Stun Server Data:', JSON.stringify(event.candidate).indexOf("typ srflx"), JSON.stringify(event.candidate));
+                        event.ready();
+                    }
+                });
 
                 let tempUuid = uuidV4();
                 setRtc(newRtc.session);
@@ -596,13 +606,13 @@ const Phone = () => {
             'eventHandlers': eventHandlers,
             'mediaConstraints': { 'audio': true, 'video': false },
 
-            /*'pcConfig': { // to much delay, but fix: "488 Incompatible SDP" when trying to send invite request to FreeSwitch with jssip library
+            'pcConfig': { // to much delay, but fix: "488 Incompatible SDP" when trying to send invite request to FreeSwitch with jssip library
                 'iceServers': [
                     {
-                        'urls': ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.swaypc.com:3478']
+                        'urls': ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']
                     }
                  ]
-             }*/
+             }
         };
 
         //#########################################

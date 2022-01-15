@@ -33,7 +33,7 @@ import VoipPushNotification from 'react-native-voip-push-notification';
 import RNCallKeep from 'react-native-callkeep';
 const optionsCallKeep = {
     ios: {
-        appName: 'top chats',
+        appName: 'app name',
         /*imageName?: string,
           supportsVideo?: boolean,
           maximumCallGroups?: string,
@@ -149,7 +149,7 @@ window.navigator.mediaDevices = window.navigator.mediaDevices || mediaDevices;
 window.navigator.getUserMedia =
     window.navigator.getUserMedia || mediaDevices.getUserMedia;
 
-//const configurationRtc = { "iceServers": [{ "url": "wss://fusionpbxclient.teczz.com:7443/ws" }] };
+//const configurationRtc = { "iceServers": [{ "url": "wss://fusionpbx.domain.com:7443/ws" }] };
 //const pc = new RTCPeerConnection(configurationRtc);
 
 let isFront = true;
@@ -204,9 +204,7 @@ import { IncomingRequest } from 'react-native-jssip/lib/SIPMessage';
 //console.log("UA sessions before call: ", ua._sessions);
  
 // Register callbacks to desired call events
- 
-//let call = ua.call('sip:+13054090817@fusionpbxclient.teczz.com', options);
- 
+  
 //#################################################
 /*
  
@@ -277,7 +275,7 @@ const Phone = () => {
         const configurationRtc = { "iceServers": [{ "url": "wss://" + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ":" + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + "/ws" }] };
         const pc = new RTCPeerConnection(configurationRtc);
 
-        //let socket = new WebSocketInterface('wss://fusionpbxclient.teczz.com:7443/ws');
+        //let socket = new WebSocketInterface('wss://fusionpbx.domain.com:7443/ws');
         let socket = new WebSocketInterface('wss://' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ':' + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + '/ws');
         //console.log("socket: ",socket);
 
@@ -1310,7 +1308,7 @@ const Phone = () => {
                 <SafeAreaView>
                     <Text>PHONE!</Text>
                     {!window.inCall && <Button title="Call to Number" onPress={() => {
-                        /*ua.call('sip:+13054090817@fusionpbxclient.teczz.com', options);*/
+                        
                         makeCall()
                     }} />}
                     {window.inCall && <Button title="HandUp" onPress={() => {

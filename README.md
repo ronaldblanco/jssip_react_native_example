@@ -15,9 +15,12 @@ cd ..
 npm install react-native-jssip --save
 npm install react-native-callkeep --save 
 npm install react-native-webrtc --save 
+npm install --save react-native-voip-push-notifications
 cd ios
 pod install
 cd .. 
 
 Run by comands:
 npx react-native run-ios 
+
+Or Open on Xcode

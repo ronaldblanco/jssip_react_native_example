@@ -149,7 +149,7 @@ window.navigator.mediaDevices = window.navigator.mediaDevices || mediaDevices;
 window.navigator.getUserMedia =
     window.navigator.getUserMedia || mediaDevices.getUserMedia;
 
-//const configurationRtc = { "iceServers": [{ "url": "wss://fusionpbx.domain.com:7443/ws" }] };
+//const configurationRtc = { "iceServers": [{ "url": "wss://fusionpbxclient.teczz.com:7443/ws" }] };
 //const pc = new RTCPeerConnection(configurationRtc);
 
 let isFront = true;
@@ -192,7 +192,7 @@ import { IncomingRequest } from 'react-native-jssip/lib/SIPMessage';
 //import {CONSTANTS as CK_CONSTANTS,RNCallKeep} from 'react-native-callkeep';
 
 //import uuid from 'react-native-uuid';
-//uuid.v4(); // ⇨ '11edc52b-2918-4d71-9058-f7285e29d894'
+//uuid.v4(); // ⇨ '11'
 
 //import {AnswerOptions, AnyListener, Originator, RTCSession, RTCSessionEventMap, TerminateOptions} from 'react-native-jssip/lib/RTCSession'
 // Create our JsSIP instance and run it:
@@ -204,7 +204,7 @@ import { IncomingRequest } from 'react-native-jssip/lib/SIPMessage';
 //console.log("UA sessions before call: ", ua._sessions);
  
 // Register callbacks to desired call events
-  
+ 
 //#################################################
 /*
  
@@ -231,6 +231,8 @@ import { useStore } from './utils/context';
 import { newMessages, newIncomingCall, newOutgoingCall, setGoHome, setPhone, setCallFrom, setDtmf, newIncomingCallHandUp, newOutgoingCallHandUp, newInCall, newCallHandUp, holdCall, muteCall, speakerCall, decreaseUnread, initialState } from './reducers/userReducer';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import Api from './utils/api';
 
 //BackgroundTimer.start();
 //const getPhoneState = async () => {
@@ -275,7 +277,7 @@ const Phone = () => {
         const configurationRtc = { "iceServers": [{ "url": "wss://" + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ":" + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + "/ws" }] };
         const pc = new RTCPeerConnection(configurationRtc);
 
-        //let socket = new WebSocketInterface('wss://fusionpbx.domain.com:7443/ws');
+        //let socket = new WebSocketInterface('wss://fusionpbxclient.teczz.com:7443/ws');
         let socket = new WebSocketInterface('wss://' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost') + ':' + (state.user && state.user.pbx_integration_port ? state.user.pbx_integration_port : '7443') + '/ws');
         //console.log("socket: ",socket);
 
@@ -284,6 +286,11 @@ const Phone = () => {
             uri: 'sip:' + (state.user && state.user.ext ? state.user.ext : 'noext') + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'),
             password: state.user && state.user.ext_password ? state.user.ext_password : 'nopass',
 
+            session_timers: true, // default true
+            session_timers_force_refresher: true,
+            session_timers_refresh_method: 'invite', // default 'update'
+            use_preloaded_route: true // default false
+            //stun_servers: ['stun:stun.swaypc.com:3478', 'stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'],
         };
         //console.log("configuration: ",configuration);
 
@@ -315,6 +322,29 @@ const Phone = () => {
         const [callTo, setCallTo] = useState(state.callTo && state.callTo.number ? state.callTo.number : null);
         const [muteCall, setMuteCall] = useState(false);
         const [holdCall, setHoldCall] = useState(false);
+
+        const [iceData, setIceData] = useState(null);
+        const [iceServers, setIceServers] = useState([
+            {
+                'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']
+            }
+        ]);
+
+        const getIceDataInfo = async () => {
+            try {
+                const { data } = await Api.getStunAndTurnData();
+                if (data) {
+                    setIceData(data);
+                    window.iceData = data;
+                    if(data.v && data.v.iceServers) setIceServers(data.v.iceServers);
+                    if(window.options && window.options.pcConfig) window.options.pcConfig.iceServers = data.v.iceServers;
+                    console.log("IceData:", JSON.stringify(data));
+                }
+            }
+            catch (e) {
+                console.error("getStunAndTurnData error:", e);
+            }
+        }
 
         let eventHandlers = {
             'progress': (e) => {
@@ -357,7 +387,7 @@ const Phone = () => {
                 catch (e) { console.log("Error unregistering the ua call: " + e.message); }
                 window.myUa = null;
                 setMyUa(null);
-                
+
                 window.rtc = null;
             },
             'ended': (e) => {
@@ -394,7 +424,7 @@ const Phone = () => {
                 catch (e) { console.log("Error unregistering the ua call: " + e.message); }
                 window.myUa = null;
                 setMyUa(null);
-                
+
                 window.rtc = null;
 
             },
@@ -479,13 +509,21 @@ const Phone = () => {
                 //console.log("_ua_contact:",rtc.session._ua._contact);
                 /*console.log("_from_tag:",rtc._from_tag);*/
                 //console.log("_user:",rtc.session._ua._dialogs[tmpId]._remote_uri._user);
-                
+
+                //'candidate:2815500354 1 udp 1686052607 99.59.227.193 50769 typ srflx raddr 172.40.20.20 rport 50769 generation 0 ufrag Wwsx network-id 1 network-cost 10'
                 newRtc.session.on('icecandidate', (event) => {
-                    console.log('Trying Stun Server Data:', JSON.stringify(event.candidate).indexOf("typ srflx"),JSON.stringify(event.candidate));
-                    if (JSON.stringify(event.candidate).indexOf("typ srflx") !== -1 /*&&
-                        event.candidate.relatedAddress !== null &&
-                        event.candidate.relatedPort !== null*/) {
+                    console.log('Trying Stun or Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ srflx"), JSON.stringify(event.candidate));
+                    /*if (JSON.stringify(event.candidate).indexOf("typ srflx") !== -1 &&
+                        (!iceData && !window.iceData) &&
+                        newRtc.originator !== 'remote') {
                         console.log('Valid Stun Server Data:', JSON.stringify(event.candidate).indexOf("typ srflx"), JSON.stringify(event.candidate));
+                        event.ready();
+                    } else if ((iceData || window.iceData) && JSON.stringify(event.candidate).indexOf("typ relay") !== -1) {
+                        console.log('Valid Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ relay"), JSON.stringify(event.candidate));
+                        //setIceData(null);
+                        event.ready();
+                    } else*/ if(JSON.stringify(event.candidate).indexOf("typ relay") !== -1){
+                        console.log('Valid Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ relay"), JSON.stringify(event.candidate),JSON.stringify(iceData),JSON.stringify(window.iceData));
                         event.ready();
                     }
                 });
@@ -550,7 +588,7 @@ const Phone = () => {
             ua.on('sipEvent', (event) => {
                 console.log('Ronald sipEvent:', event.event);
                 //console.log('Ronald RTC State Ended?:',window.rtc?window.rtc.isEnded():"No RTC");
-            })
+            });
 
             //console.log('Ready to make Registration! -> Notification');
             try {
@@ -598,23 +636,23 @@ const Phone = () => {
         }
         //############################
 
-        //console.log("UA before: ",ua);
+        //let iceServers = [];
 
         let options = {
             'eventHandlers': eventHandlers,
             'mediaConstraints': { 'audio': true, 'video': false },
 
             'pcConfig': { // to much delay, but fix: "488 Incompatible SDP" when trying to send invite request to FreeSwitch with jssip library
-                'iceServers': [
-                    {
-                        'urls': ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']
-                    }
-                 ]
-             }
+                iceServers
+            }
         };
+        window.options = options;
 
         //#########################################
         const onAnswerCallAction = ({ callUUID }) => {
+
+            getIceDataInfo(); //Get Stun and Turn Data for the call
+
             const number = calls[callUUID];
             log(`answer the call [answerCall] ${callUUID}, number: ${number}`);
             //console.log("I did answer the call using CallKeep!");
@@ -622,14 +660,14 @@ const Phone = () => {
             //RNCallKeep.startCall(callUUID, 'number', 'number');
 
             if (!window.rtc || window.rtc === {}) setTimeout(() => {
-                console.log("wait for window.rtc",window.rtc);
+                console.log("wait for window.rtc", window.rtc);
 
                 if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
                     catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
 
                 if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
 
-                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
+                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(window.options) : "";
                     window.inCall = true;
                     setInCall(true);
                     if (!state.inCall) displatch(newInCall());
@@ -640,20 +678,21 @@ const Phone = () => {
 
             }, 3000);
             else {
-                console.log("no wait for window.rtc",window.rtc);
+                console.log("no wait for window.rtc", window.rtc);
                 if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
                     catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
 
-                if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
+                setTimeout(()=>{if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
 
-                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : "";
+                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(window.options) : "";
                     window.inCall = true;
                     setInCall(true);
                     if (!state.inCall) displatch(newInCall());
 
+                    console.log("answer -> iceData and options:",JSON.stringify(window.options),JSON.stringify(iceData));
                 } catch (e) {
                     console.error("Error answering the call: " + e.message);
-                }
+                }},2000);
 
             }
 
@@ -690,7 +729,7 @@ const Phone = () => {
             catch (e) { console.log("Error unregistering the ua call: " + e.message); }
             window.myUa = null;
             setMyUa(null);
-            
+
             window.rtc = null;
 
         };
@@ -800,12 +839,11 @@ const Phone = () => {
             }
 
             console.log(`[onIncomingCallDisplayed] from voip token ${callUUID} ${fromPushKit}`);
-            
+
             setTimeout(() => {
-                if (!inCall) try { RNCallKeep.endCall(callUUID); }
+                if (!window.inCall) try { RNCallKeep.endCall(callUUID); }
                     catch (e) { console.log("Error ending the callkeep: " + e.message); }
             }, 30000);
-
             //setCallMuted(callUUID, muted);
         };
         //#########################################
@@ -820,6 +858,7 @@ const Phone = () => {
             if (!makingCall) {
 
                 //displatch(setGoHome(false));
+                getIceDataInfo(); //Get Stun and Turn Data for the call
 
                 let tempUuid = uuidV4();
                 setStateUuid(tempUuid);
@@ -846,6 +885,8 @@ const Phone = () => {
                             //ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options);
                             //console.log("Call was done now after Registration to make Call");
                             setTimeout(() => {
+                                let options = window.options;
+                                console.log("call -> iceData and options:",JSON.stringify(options),JSON.stringify(iceData));
                                 ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : ''
                                 console.log("Registration to make Call -> Call was done now!");
                             }, 4000);
@@ -917,12 +958,14 @@ const Phone = () => {
             catch (e) { console.log("Error unregistering the ua call: " + e.message); }
             window.myUa = null;
             setMyUa(null);
-            
+
             window.rtc = null;
 
         }
 
         const makeAnswer = (RNCallKeep = null) => {
+
+            getIceDataInfo(); //Get Stun and Turn Data for the call
             //try {
 
             if (window.rtc && window.rtc !== {} && window.rtc.answer) try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
@@ -1114,6 +1157,8 @@ const Phone = () => {
                 setMyRNCallKeep(RNCallKeep);
             }
 
+            /*if(!iceData)*/ //getIceDataInfo();
+
             return () => {
                 RNCallKeep.removeEventListener('answerCall', onAnswerCallAction);
                 RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
@@ -1146,6 +1191,8 @@ const Phone = () => {
                     name: ""
                 }))*/
             }
+
+            console.log("IceData:", JSON.stringify(iceData));
 
         }, [state.callTo])
 
@@ -1261,16 +1308,25 @@ const Phone = () => {
 
         }, [state.dtmf])
 
-        //useEffect(() => {
+        /*useEffect(() => {
 
-        //if (state.answer && rtc && rtc !== {} && rtc.answer) {
+            if (!iceData) {
+                setIceServers([
+                    {
+                        'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']
+                    }
+                ]);
+                //getIceDataInfo();
+            }
+            else if (iceData && iceData.v && iceData.v.iceServers) setIceServers(iceData.v.iceServers);
 
-        //if (!state.goHome && !inCall) displatch(setGoHome(true));
-        //else makeUnMute(null, options);
+        }, [iceData])*/
 
-        //}
+        useEffect(() => {
 
-        //}, [inCall])
+            console.log("options:", JSON.stringify(options));
+
+        }, [iceServers])
 
         //console.log("Before the Phone return -> Notification");
 
@@ -1285,21 +1341,6 @@ const Phone = () => {
 
                         </>
                     )*/}
-                {/*<Audio id="calling" src="/calling.mp3" preload="auto"></Audio>
-
-                <Audio id="0" src="/phone_keys/wav_0.wav" preload="auto"></Audio>
-                <Audio id="1" src="/phone_keys/wav_1.wav" preload="auto"></Audio>
-                <Audio id="2" src="/phone_keys/wav_2.wav" preload="auto"></Audio>
-                <Audio id="3" src="/phone_keys/wav_3.wav" preload="auto"></Audio>
-                <Audio id="4" src="/phone_keys/wav_4.wav" preload="auto"></Audio>
-                <Audio id="5" src="/phone_keys/wav_5.wav" preload="auto"></Audio>
-                <Audio id="6" src="/phone_keys/wav_6.wav" preload="auto"></Audio>
-                <Audio id="7" src="/phone_keys/wav_7.wav" preload="auto"></Audio>
-                <Audio id="8" src="/phone_keys/wav_8.wav" preload="auto"></Audio>
-                <Audio id="9" src="/phone_keys/wav_9.wav" preload="auto"></Audio>
-                <Audio id="star" src="/phone_keys/wav_star.wav" preload="auto"></Audio>
-        <Audio id="hash" src="/phone_keys/wav_hash.wav" preload="auto"></Audio>*/}
-
 
             </>
         );

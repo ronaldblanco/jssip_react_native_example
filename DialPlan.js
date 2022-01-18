@@ -423,16 +423,16 @@ const DialPlan = ({ onCancel, onCall = null, onActiveCall = false }) => {
             <View style={{ flexDirection: 'row' }}>
                 <Button
                     icon={
-                        <Icon
+                        onActiveCall ?<Icon
                             name="cancel"
                             size={35}
                             color="white"
-                        />
+                        />:<></>
                     }
                     title=""
                     type="clear"
-                    buttonStyle={!onActiveCall ? styles.roundButtonCancel : styles.roundButtonCancel}
-                    onPress={onCancel}
+                    buttonStyle={!onActiveCall ? styles.roundButtonCallDisabled : styles.roundButtonCancel}
+                    onPress={onActiveCall ?onCancel:()=>{}}
                 />
                 {/*!state.inCall && */<Button
                     disabled={!state.inCall ? false : true}
@@ -458,12 +458,12 @@ const DialPlan = ({ onCancel, onCall = null, onActiveCall = false }) => {
                         number.length > 0 ? <Icon
                             name="backspace"
                             size={35}
-                            color="white"
+                            color="grey"
                         /> : <></>
                     }
                     title=""
                     type="clear"
-                    buttonStyle={!onActiveCall ? styles.roundButton1 : styles.roundButton1}
+                    buttonStyle={number.length === 0 ? styles.roundButton1Disable : styles.roundButton1Disable}
                     onPress={() => setNumber(number.substring(0, number.length - 1))}
                 />
             </View>
@@ -530,6 +530,17 @@ const styles = StyleSheet.create({
         //color: "white"
         //color:"#841584"
     },
+    roundButton1Disable: {
+        width: 80,
+        height: 80,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 100,
+        //backgroundColor: 'grey',
+        //color: "white"
+        //color:"#841584"
+    },
     roundButton1Title: {
         color: "white",
         fontSize: 35,
@@ -550,7 +561,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 10,
         borderRadius: 100,
-        backgroundColor: 'grey',
+        //backgroundColor: 'grey',
     },
     roundButtonCancel: {
         width: 80,

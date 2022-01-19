@@ -35,3 +35,4 @@ npx react-native run-android
 To fix build problems
 cd android
 ./gradlew clean && ./gradlew :app:bundleRelease
+######################

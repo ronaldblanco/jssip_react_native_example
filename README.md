@@ -31,8 +31,13 @@ For Android:
 adb devices
 adb -s device_id reverse tcp:8081 tcp:8081
 npx react-native run-android
+or
+npx react-native run-android -- --warning-mode all
 
 To fix build problems
 cd android
 ./gradlew clean && ./gradlew :app:bundleRelease
+
+To see log:
+adb logcat ReactNative:V ReactNativeJS:V
 ######################

@@ -914,52 +914,90 @@ const Phone = () => {
         }
 
         const makeHandup = (RNCallKeep) => {
+            
             setAnswered(false);
             setCallType(null);
 
             //try {
-            try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
-            catch (e) { console.log("Error local ending the rtc call: " + e.message); }
-            try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
-            catch (e) { console.log("Error local ending the myUa call: " + e.message); }
-            try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
-            catch (e) { console.log("Error local ending the ua call: " + e.message); }
+            if (!inCall) {
+                setTimeout(() => {
+                    try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
+                    catch (e) { console.log("Error local ending the rtc call: " + e.message); }
+                    try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
+                    catch (e) { console.log("Error local ending the myUa call: " + e.message); }
+                    try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
+                    catch (e) { console.log("Error local ending the ua call: " + e.message); }
+
+                    setRtc({});
+
+                    console.log("[didReceiveStartCallAction] handup execution", rtc, myUa, ua);
+
+                    window.inCall = false;
+                    setInCall(false);
+                    window.stateUuid ? RNCallKeep.endCall(window.stateUuid) : "";
+                    setCallType(null);
+                    setCallTo(null);
+
+                    setStateUuid(null);
+                    window.stateUuid = null;
+                    window.fromPushKit = false;
+
+                    if (state.incommingCall) displatch(newIncomingCallHandUp());
+                    if (state.outgoingCall) displatch(newOutgoingCallHandUp());
+                    if (state.handUp) displatch(newCallHandUp());
+                    if (state.inCall) displatch(newInCall());
+
+                }, 4000);
+            }
+            else {
+                try { rtc && rtc.terminate ? rtc.terminate(options) : ""; }
+                catch (e) { console.log("Error local ending the rtc call: " + e.message); }
+                try { myUa && myUa.terminateSessions ? myUa.terminateSessions(options) : ""; }
+                catch (e) { console.log("Error local ending the myUa call: " + e.message); }
+                try { ua && ua.terminateSessions ? ua.terminateSessions(options) : ''; }
+                catch (e) { console.log("Error local ending the ua call: " + e.message); }
+
+                setRtc({});
+
+                console.log("[didReceiveStartCallAction] handup execution", rtc, myUa, ua);
+
+                window.inCall = false;
+                setInCall(false);
+                window.stateUuid ? RNCallKeep.endCall(window.stateUuid) : "";
+                setCallType(null);
+                setCallTo(null);
+
+                setStateUuid(null);
+                window.stateUuid = null;
+                window.fromPushKit = false;
+
+                if (state.incommingCall) displatch(newIncomingCallHandUp());
+                if (state.outgoingCall) displatch(newOutgoingCallHandUp());
+                if (state.handUp) displatch(newCallHandUp());
+                if (state.inCall) displatch(newInCall());
+
+            }
+
             //} catch (e) {
             //console.error("Error local ending the call: " + e.message);
             //}
 
             //if (!state.goHome && state.inCall && state.handUp /*&& (state.incommingCall || state.outgoingCall)*/) displatch(setGoHome(true));
 
-            setRtc({});
-
-            console.log("[didReceiveStartCallAction] handup execution", rtc, myUa, ua);
-
-            window.inCall = false;
-            setInCall(false);
-            window.stateUuid ? RNCallKeep.endCall(window.stateUuid) : "";
-            setCallType(null);
-            setCallTo(null);
-
-            setStateUuid(null);
-            window.stateUuid = null;
-            window.fromPushKit = false;
-
-            if (state.incommingCall) displatch(newIncomingCallHandUp());
-            if (state.outgoingCall) displatch(newOutgoingCallHandUp());
-            if (state.handUp) displatch(newCallHandUp());
-            if (state.inCall) displatch(newInCall());
-
             //try {
-            try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
-            catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
-            try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
-            catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
-            try { ua && ua.isRegistered() ? ua.unregister() : ""; }
-            catch (e) { console.log("Error unregistering the ua call: " + e.message); }
-            window.myUa = null;
-            setMyUa(null);
+            setTimeout(() => {
 
-            window.rtc = null;
+                try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
+                try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
+                try { ua && ua.isRegistered() ? ua.unregister() : ""; }
+                catch (e) { console.log("Error unregistering the ua call: " + e.message); }
+                window.myUa = null;
+                setMyUa(null);
+                window.rtc = null;
+
+            }, 5000);
 
         }
 

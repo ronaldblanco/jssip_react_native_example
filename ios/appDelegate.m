@@ -8,10 +8,17 @@
 #import "RNVoipPushNotificationManager.h"      /* <------ add this line */
 
 #import <RNCallKeep/RNCallKeep.h>      /* <------ add this line */
-////#import "RNCallKit.h"   /* <------ add this line */
+//#import "RNCallKit.h"   /* <------ add this line */
 
 #import <UserNotifications/UserNotifications.h>
 #import <RNCPushNotificationIOS.h>
+
+//#import "RNBackgroundTimer.h"
+
+#import <Foundation/Foundation.h>
+#import <AVFoundation/AVFoundation.h>
+
+//#import "LoudSpeaker.h"
 
 #ifdef FB_SONARKIT_ENABLED
 #import <FlipperKit/FlipperClient.h>
@@ -33,8 +40,6 @@ static void InitializeFlipper(UIApplication *application) {
 #endif
 
 @implementation AppDelegate
-
-
 
 //##################################################
 // Required for the register event.
@@ -62,8 +67,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 }
 //##################################################
 
-
-
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
 #ifdef FB_SONARKIT_ENABLED
@@ -71,8 +74,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #endif
 
   RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:launchOptions];
-
-  
 
   RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:bridge
                                                    moduleName:@"jssip634"
@@ -90,8 +91,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
   center.delegate = self;
   
-  
-  
   return YES;
 }
 
@@ -103,6 +102,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
 #endif
 }
+
+//############################################### More time
+
+//###############################################
 
 //###############################################
 /* Add PushKit delegate method */
@@ -120,7 +123,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 // --- Handle incoming pushes
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion {
-  
   
   // --- NOTE: apple forced us to invoke callkit ASAP when we receive voip push
   // --- see: react-native-callkeep
@@ -143,6 +145,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   // --- Process the received push
   [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
   //return [RNCallKeep];
+  
   // --- You should make sure to report to callkit BEFORE execute `completion()`
   [RNCallKeep reportNewIncomingCall: uuid
                              handle: handle
@@ -159,10 +162,146 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   //[RNCallKeep reportNewIncomingCall:uuid handle:handle handleType:@"generic" hasVideo:false localizedCallerName:callerName fromPushKit:true payload:nil];
   //[RNCallKeep reportNewIncomingCall:uuid handle:"Incoming Call..." handleType:@"generic" hasVideo:false localizedCallerName:"No Name" fromPushKit: YES payload:nil];
   //[RNCallKeep RNCallKeepDidDisplayIncomingCall:uuid handle:handle];
+  NSLog (@"Entering Voip Notification!");
   
   // --- You don't need to call it if you stored `completion()` and will call it on the js side.
   completion();
 }
 //###############################################
+
+//############################################### more time
+/*AVAudioPlayer *musicPlayer;
+- (void)playMusic {
+
+    //NSString *musicPath = [[NSBundle mainBundle] pathForResource:@"phone_loop" ofType:@"wav"];
+    //NSURL *musicURL = [NSURL fileURLWithPath:musicPath];
+    NSURL *musicURL = [NSURL fileURLWithPath:@"https://server.com/silence.mp3"];
+  
+    musicPlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:musicURL error:nil];
+    [musicPlayer setNumberOfLoops:10];   // Negative number means loop forever
+
+    [musicPlayer prepareToPlay];
+    [musicPlayer play];
+    NSLog (@"Playing Background Music");
+}
+
+- (void)stopMusic {
+    
+    [musicPlayer stop];
+}*/
+
+//int sleepActivation;
+int sleepActivation = 0;
+- (void)sleepAppForBackground {
+  int i, k;
+  i = 0;
+  k = 60;
+  if(sleepActivation) for(i=0;i<k;i++){
+    if(sleepActivation) sleep(1);
+  }
+    
+}
+
+// Create the background task
+//__block UIBackgroundTaskIdentifier bgTask;
+//UIApplication *app = [UIApplication sharedApplication];
+
+- (void)applicationDidEnterBackground:(UIApplication *)application
+{
+
+  // Create the background task
+  __block UIBackgroundTaskIdentifier bgTask;
+  UIApplication *app = [UIApplication sharedApplication];
+  bgTask = [app beginBackgroundTaskWithName:nil expirationHandler:^{
+       // End the task so the OS doesn’t kill the app
+       if (bgTask != UIBackgroundTaskInvalid) {
+            [app endBackgroundTask:bgTask];
+            bgTask = UIBackgroundTaskInvalid;
+       }
+  }];
+  
+  /* ... Code permitted to execute in background … */
+  NSLog (@"To Background by aplication");
+  //[self playMusic];
+  //sleep(300); //5 minutes (300)
+  
+  /*sleepActivation = 1;
+  int i = 0;
+  if(sleepActivation) for(i=0;i<60;i++){
+    if(sleepActivation) sleep(1);
+  }*/
+  
+  // End the task
+  if (bgTask != UIBackgroundTaskInvalid) {
+       [app endBackgroundTask:bgTask];
+       bgTask = UIBackgroundTaskInvalid;
+  }
+    
+}
+
+- (void)applicationWillEnterForeground:(UIApplication *)application
+{
+  NSLog (@"To Foreground by aplication");
+  
+  //sleepActivation = 0;
+  
+  //[self stopMusic];
+  //[UIApplication activateIgnoringOtherApps:YES];
+
+  //[[self window] makeKeyAndOrderFront:self];
+
+  //[[self window] setLevel:NSFloatingWindowLevel];
+
+  //[UIApplication beginModalSessionForWindow:[self window]];
+  
+}
+
+- (void)sceneDidEnterBackground:(UIScene *)scene
+{
+
+  // Create the background task
+  /*__block UIBackgroundTaskIdentifier bgTask;
+  UIApplication *app = [UIApplication sharedApplication];
+  bgTask = [app beginBackgroundTaskWithName:nil expirationHandler:^{
+       // End the task so the OS doesn’t kill the app
+       if (bgTask != UIBackgroundTaskInvalid) {
+            [app endBackgroundTask:bgTask];
+            bgTask = UIBackgroundTaskInvalid;
+       }
+  }];
+  
+   //... Code permitted to execute in background …
+  NSLog (@"To Background by scene");
+  //[self playMusic];
+  sleep(300);
+  
+  // End the task
+  if (bgTask != UIBackgroundTaskInvalid) {
+       [app endBackgroundTask:bgTask];
+       bgTask = UIBackgroundTaskInvalid;
+  }*/
+  NSLog (@"To Background by scene");
+
+}
+
+- (void)sceneWillEnterForeground:(UIScene *)scene
+{
+  //[[UIApplication sharedApplication] endBackgroundTask:{}];
+    NSLog (@"To Foreground by scene");
+    /*[self stopMusic];*/
+  
+    
+}
+
+/*- (BOOL)application:(UIApplication *)application
+  continueUserActivity:(NSUserActivity *)userActivity
+  restorationHandler:(void(^)(NSArray * _Nullable restorableObjects))restorationHandler {
+    return [RNCallKeep application:application
+                        continueUserActivity:userActivity
+                        restorationHandler:restorationHandler];
+  
+}*/
+
+//#########################################################
 
 @end

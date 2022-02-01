@@ -216,7 +216,7 @@ const ActiveCallScreen = ({ navigation }/*,timer*/) => {
                     {state.callFrom ? state.callFrom.name : state.callTo ? state.callTo.name : 'Unknow'}
                 </Text></>}
 
-            {state.inCall && <Stopwatch
+            {/*state.inCall && <Stopwatch
                 laps
                 msecs={false}
                 start={stopwatchStart}
@@ -224,7 +224,7 @@ const ActiveCallScreen = ({ navigation }/*,timer*/) => {
                 options={options}
                 getTime={getFormattedTime}
                 startTime={0}
-            />}
+            />*/}
 
             {!state.mute && state.incommingCall ? <Icon name="mic"
                 size={35}

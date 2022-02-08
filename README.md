@@ -28,6 +28,7 @@ Or Open on Xcode
 For Android:
 cd project_folder
 
+export PATH=$PATH:/Users/.../platform-tools #in case of problems with adb
 adb devices
 adb -s device_id reverse tcp:8081 tcp:8081
 npx react-native run-android

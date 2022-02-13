@@ -33,7 +33,7 @@ import VoipPushNotification from 'react-native-voip-push-notification';
 import RNCallKeep from 'react-native-callkeep';
 const optionsCallKeep = {
     ios: {
-        appName: 'top chats',
+        appName: 'app name',
         /*imageName?: string,
           supportsVideo?: boolean,
           maximumCallGroups?: string,
@@ -41,7 +41,7 @@ const optionsCallKeep = {
           ringtoneSound?: string,*/
         includesCallsInRecents: true
     },
-    /*android: {
+    android: {
       alertTitle: 'Permissions required',
       alertDescription: 'This application needs to access your phone accounts',
       cancelButton: 'Cancel',
@@ -55,7 +55,7 @@ const optionsCallKeep = {
         notificationTitle: 'My app is running on background',
         notificationIcon: 'Path to the resource icon of the notification',
       }, 
-    }*/
+    }
 };
 
 class PushNotification extends React.Component {

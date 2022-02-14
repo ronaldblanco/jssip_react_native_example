@@ -1,4 +1,6 @@
 rootProject.name = 'jssip634_android'
+include ':react-native-callkeep'
+project(':react-native-callkeep').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-callkeep/android')
 include ':@react-native-google-signin_google-signin'
 project(':@react-native-google-signin_google-signin').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-google-signin/google-signin/android')
 include ':react-native-vector-icons'
@@ -6,6 +8,9 @@ project(':react-native-vector-icons').projectDir = new File(rootProject.projectD
 include ':@react-native-async-storage_async-storage'
 project(':@react-native-async-storage_async-storage').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-async-storage/async-storage/android')
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
-include ':WebRTCModule', ':react-native-callkeep', ':app'
+include ':WebRTCModule'
 project(':WebRTCModule').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-webrtc/android')
+include ':react-native-callkeep'
 project(':react-native-callkeep').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-callkeep/android')
+
+include ':app'

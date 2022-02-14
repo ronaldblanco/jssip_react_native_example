@@ -33,7 +33,7 @@ import VoipPushNotification from 'react-native-voip-push-notification';
 import RNCallKeep from 'react-native-callkeep';
 const optionsCallKeep = {
     ios: {
-        appName: 'top chats',
+        appName: 'app',
         /*imageName?: string,
           supportsVideo?: boolean,
           maximumCallGroups?: string,

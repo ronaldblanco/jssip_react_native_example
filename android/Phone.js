@@ -33,7 +33,7 @@ import VoipPushNotification from 'react-native-voip-push-notification';
 import RNCallKeep from 'react-native-callkeep';
 const optionsCallKeep = {
     ios: {
-        appName: 'app name',
+        appName: 'top chats',
         /*imageName?: string,
           supportsVideo?: boolean,
           maximumCallGroups?: string,
@@ -42,19 +42,19 @@ const optionsCallKeep = {
         includesCallsInRecents: true
     },
     android: {
-      alertTitle: 'Permissions required',
-      alertDescription: 'This application needs to access your phone accounts',
-      cancelButton: 'Cancel',
-      okButton: 'ok',
-      imageName: 'phone_account_icon',
-      additionalPermissions: [PermissionsAndroid.PERMISSIONS.example],
-      // Required to get audio in background when using Android 11
-      foregroundService: {
-        channelId: 'com.company.my',
-        channelName: 'Foreground service for my app',
-        notificationTitle: 'My app is running on background',
-        notificationIcon: 'Path to the resource icon of the notification',
-      }, 
+        alertTitle: 'Permissions required',
+        alertDescription: 'This application needs to access your phone accounts',
+        cancelButton: 'Cancel',
+        okButton: 'ok',
+        imageName: 'phone_account_icon',
+        //additionalPermissions: [PermissionsAndroid.PERMISSIONS.example],
+        // Required to get audio in background when using Android 11
+        foregroundService: {
+            channelId: 'com.company.my',
+            channelName: 'Foreground service for my app',
+            notificationTitle: 'My app is running on background',
+            notificationIcon: 'Path to the resource icon of the notification',
+        },
     }
 };
 
@@ -336,8 +336,8 @@ const Phone = () => {
                 if (data) {
                     setIceData(data);
                     window.iceData = data;
-                    if(data.v && data.v.iceServers) setIceServers(data.v.iceServers);
-                    if(window.options && window.options.pcConfig) window.options.pcConfig.iceServers = data.v.iceServers;
+                    if (data.v && data.v.iceServers) setIceServers(data.v.iceServers);
+                    if (window.options && window.options.pcConfig) window.options.pcConfig.iceServers = data.v.iceServers;
                     console.log("IceData:", JSON.stringify(data));
                 }
             }
@@ -415,8 +415,9 @@ const Phone = () => {
 
                 if (!state.handUp) displatch(newCallHandUp());
                 if (state.inCall) displatch(newInCall());
+
                 //try {
-                try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+                /*try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
                 catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
                 try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
                 catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
@@ -425,7 +426,7 @@ const Phone = () => {
                 window.myUa = null;
                 setMyUa(null);
 
-                window.rtc = null;
+                window.rtc = null;*/
 
             },
             'confirmed': (e) => {
@@ -522,8 +523,8 @@ const Phone = () => {
                         console.log('Valid Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ relay"), JSON.stringify(event.candidate));
                         //setIceData(null);
                         event.ready();
-                    } else*/ if(JSON.stringify(event.candidate).indexOf("typ relay") !== -1){
-                        console.log('Valid Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ relay"), JSON.stringify(event.candidate),JSON.stringify(iceData),JSON.stringify(window.iceData));
+                    } else*/ if (JSON.stringify(event.candidate).indexOf("typ relay") !== -1) {
+                        console.log('Valid Turn Server Data:', JSON.stringify(event.candidate).indexOf("typ relay"), JSON.stringify(event.candidate), JSON.stringify(iceData), JSON.stringify(window.iceData));
                         event.ready();
                     }
                 });
@@ -555,7 +556,21 @@ const Phone = () => {
                     if (!window.fromPushKit) {
                         addCall(tempUuid, number);
                         console.log("Incoming Call Active [answerCall]: ", tempUuid, number, newRtc.originator);
-                        RNCallKeep.displayIncomingCall(tempUuid, number);
+
+                        displatch(newIncomingCall());
+                        displatch(setCallFrom({
+                            number: number,
+                            name: number
+                        }));
+                        //displatch(setCallTo(null));
+                        //if ((window.myUa && window.myUa.isRegistered()) && (ua && ua.isRegistered()) && (myUa && myUa.isRegistered())) {
+                        //Jssip it is registered
+                        //} else { initJssip(); } //Pbx registration
+                        //window.fromPushKit = true;
+                        //if (!stateUuid) setStateUuid(tempUuid);
+                        //if (!window.stateUuid) window.stateUuid = tempUuid;
+
+                        RNCallKeep.displayIncomingCall(tempUuid, number, number);
                     }
                     else {
                         addCall(window.stateUuid, number);
@@ -662,15 +677,17 @@ const Phone = () => {
             if (!window.rtc || window.rtc === {}) setTimeout(() => {
                 console.log("wait for window.rtc", window.rtc);
 
-                if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
-                    catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
-
                 if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
 
                     window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(window.options) : "";
+                    if (rtc && rtc !== {} && rtc.answer) try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
+                        catch (e) { console.log("Error answering rtc: " + e.message); }
                     window.inCall = true;
                     setInCall(true);
                     if (!state.inCall) displatch(newInCall());
+
+                    if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
+                        catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
 
                 } catch (e) {
                     console.error("Error answering the call: " + e.message);
@@ -679,20 +696,25 @@ const Phone = () => {
             }, 3000);
             else {
                 console.log("no wait for window.rtc", window.rtc);
-                if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
-                    catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
 
-                setTimeout(()=>{if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
+                setTimeout(() => {
+                    if (window.rtc && window.rtc !== {} && window.rtc.answer) try {
 
-                    window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(window.options) : "";
-                    window.inCall = true;
-                    setInCall(true);
-                    if (!state.inCall) displatch(newInCall());
+                        window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(window.options) : "";
+                        if (rtc && rtc !== {} && rtc.answer) try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
+                            catch (e) { console.log("Error answering rtc: " + e.message); }
+                        window.inCall = true;
+                        setInCall(true);
+                        if (!state.inCall) displatch(newInCall());
 
-                    console.log("answer -> iceData and options:",JSON.stringify(window.options),JSON.stringify(iceData));
-                } catch (e) {
-                    console.error("Error answering the call: " + e.message);
-                }},2000);
+                        if (window.rtc && window.rtc !== {} && window.rtc.answer) try { RNCallKeep.setCurrentCallActive(callUUID); }
+                            catch (e) { console.log("Error setCurrentCallActive the callkeep: " + e.message); }
+
+                        console.log("answer -> iceData and options:", JSON.stringify(window.options), JSON.stringify(iceData));
+                    } catch (e) {
+                        console.error("Error answering the call: " + e.message);
+                    }
+                }, 2000);
 
             }
 
@@ -720,8 +742,9 @@ const Phone = () => {
 
             if (!state.handUp) displatch(newCallHandUp());
             if (state.inCall) displatch(newInCall());
+
             //try {
-            try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+            /*try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
             catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
             try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
             catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
@@ -730,7 +753,7 @@ const Phone = () => {
             window.myUa = null;
             setMyUa(null);
 
-            window.rtc = null;
+            window.rtc = null;*/
 
         };
 
@@ -864,16 +887,6 @@ const Phone = () => {
                 setStateUuid(tempUuid);
                 window.stateUuid = tempUuid;
 
-                let callKeep = null;
-                if (RNCallKeep) try {
-                    //console.log("startingCall for callkeep -> RNCallKeep.startCall",RNCallKeep.startCall);
-                    await RNCallKeep.getInitialEvents();
-                    await RNCallKeep.startCall(tempUuid, callTo, callTo, 'generic', false);
-
-                    //if(callKeep) console.log("startingCall for callkeep",callKeep);
-                }
-                    catch (e) { console.log("Error startingCall for callkeep: " + e.message); }
-
                 try {
                     //if ((ua && !ua.isRegistered()) || (myUa && !myUa.isRegistered())) {
                     await initJssip();
@@ -886,9 +899,20 @@ const Phone = () => {
                             //console.log("Call was done now after Registration to make Call");
                             setTimeout(() => {
                                 let options = window.options;
-                                console.log("call -> iceData and options:",JSON.stringify(options),JSON.stringify(iceData));
+                                console.log("call -> iceData and options:", JSON.stringify(options), JSON.stringify(iceData));
                                 ua && ua.call ? ua.call('sip:' + callTo + '@' + (state.user && state.user.pbx_domain ? state.user.pbx_domain : 'localhost'), options) : ''
                                 console.log("Registration to make Call -> Call was done now!");
+
+                                let callKeep = null;
+                                if (RNCallKeep) try {
+                                    //console.log("startingCall for callkeep -> RNCallKeep.startCall",RNCallKeep.startCall);
+                                    RNCallKeep.getInitialEvents();
+                                    setTimeout(() => RNCallKeep.startCall(tempUuid, callTo, callTo, 'generic', false), 400);
+
+                                    //if(callKeep) console.log("startingCall for callkeep",callKeep);
+                                }
+                                    catch (e) { console.log("Error startingCall for callkeep: " + e.message); }
+
                             }, 4000);
                         }
                         catch (e) {
@@ -950,7 +974,7 @@ const Phone = () => {
             if (state.inCall) displatch(newInCall());
 
             //try {
-            try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
+            /*try { window.myUa && window.myUa.isRegistered() ? window.myUa.unregister() : ""; }
             catch (e) { console.log("Error unregistering the window.myUa call: " + e.message); }
             try { myUa && myUa.isRegistered() ? myUa.unregister() : ""; }
             catch (e) { console.log("Error unregistering the myUa call: " + e.message); }
@@ -959,7 +983,7 @@ const Phone = () => {
             window.myUa = null;
             setMyUa(null);
 
-            window.rtc = null;
+            window.rtc = null;*/
 
         }
 
@@ -968,18 +992,20 @@ const Phone = () => {
             getIceDataInfo(); //Get Stun and Turn Data for the call
             //try {
 
-            setTimeout(()=>{if (window.rtc && window.rtc !== {} && window.rtc.answer) try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
-                catch (e) { console.log("Error answering window.rtc: " + e.message); }
-            if (rtc && rtc !== {} && rtc.answer) try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
-                catch (e) { console.log("Error answering rtc: " + e.message); }
+            setTimeout(() => {
+                if (window.rtc && window.rtc !== {} && window.rtc.answer) try { window.rtc && window.rtc !== {} && window.rtc.answer ? window.rtc.answer(options) : ""; }
+                    catch (e) { console.log("Error answering window.rtc: " + e.message); }
+                if (rtc && rtc !== {} && rtc.answer) try { rtc && rtc !== {} && rtc.answer ? rtc.answer(options) : ""; }
+                    catch (e) { console.log("Error answering rtc: " + e.message); }
 
-            if ((window.rtc && window.rtc !== {} && window.rtc.answer) || (rtc && rtc !== {} && rtc.answer)) {
+                if ((window.rtc && window.rtc !== {} && window.rtc.answer) || (rtc && rtc !== {} && rtc.answer)) {
 
-                window.inCall = true;
-                setInCall(true);
-                if (!state.inCall) displatch(newInCall());
+                    window.inCall = true;
+                    setInCall(true);
+                    if (!state.inCall) displatch(newInCall());
 
-            }},2000);
+                }
+            }, 2000);
 
             //} catch (e) {
             //console.error("Error answering the call: " + e.message);
@@ -1141,6 +1167,7 @@ const Phone = () => {
         useEffect(() => {
             if (!window.myUa) {
                 init();
+                //initJssip();
                 RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
                 RNCallKeep.addEventListener('answerCall', onAnswerCallAction);
                 RNCallKeep.addEventListener('endCall', onEndCallAction);
@@ -1349,7 +1376,7 @@ const Phone = () => {
                 <SafeAreaView>
                     <Text>PHONE!</Text>
                     {!window.inCall && <Button title="Call to Number" onPress={() => {
-                        
+
                         makeCall()
                     }} />}
                     {window.inCall && <Button title="HandUp" onPress={() => {

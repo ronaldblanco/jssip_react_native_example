@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
+import io.wazo.callkeep.RNCallKeepPackage;
 import com.reactnativegooglesignin.RNGoogleSigninPackage;
 import com.oblador.vectoricons.VectorIconsPackage;
 import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;
@@ -14,7 +15,16 @@ import com.facebook.soloader.SoLoader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
-import io.wazo.callkeep.RNCallKeepPackage; // Add this import line
+//import io.wazo.callkeep.RNCallKeepPackage; // Add this import line
+
+/*import org.unimodules.adapters.react.ReactAdapterPackage;
+import org.unimodules.adapters.react.ModuleRegistryAdapter;
+import org.unimodules.adapters.react.ReactModuleRegistryProvider;
+import org.unimodules.core.interfaces.Package;
+import org.unimodules.core.interfaces.SingletonModule;
+import expo.modules.constants.ConstantsPackage;
+import expo.modules.permissions.PermissionsPackage;
+import expo.modules.filesystem.FileSystemPackage;*/
 
 public class MainApplication extends Application implements ReactApplication {
 

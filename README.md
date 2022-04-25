@@ -16,7 +16,6 @@ npm install react-native-callkeep --save
 npm install react-native-webrtc --save 
 npm install --save react-native-voip-push-notifications
 ```
-######################
 
 For IOS:
 ```
@@ -27,7 +26,6 @@ npx react-native run-ios
 Or 
 Open on Xcode
 ```
-#######################
 
 For Android:
 ```

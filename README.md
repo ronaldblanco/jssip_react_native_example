@@ -46,3 +46,8 @@ To see log:
 ```
 adb logcat ReactNative:V ReactNativeJS:V |grep 'package_name' > android_log.txt
 ```
+
+```
+yarn start --reset-cache //Reset cache of metro server
+npx react-native link <npm package> //To link manualy an npm package
+```

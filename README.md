@@ -36,7 +36,7 @@ adb -s device_id reverse tcp:8081 tcp:8081
 npx react-native run-android
 or
 npx react-native run-android -- --warning-mode all
-npx react-native start
+npx react-native start #Only start metro server
 other commands
 npx react-native bundle --platform android --dev true --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res_backup/
 adb -s emulator-5554 reverse --remove tcp:8081

@@ -38,8 +38,9 @@ or
 npx react-native run-android -- --warning-mode all
 npx react-native start #Only start metro server
 other commands
-npx react-native bundle --platform android --dev true --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res_backup/
-./gradlew clean && rm -R C:\Users\roblanco\.gradle\caches\build-cache-1 && ./gradlew :app:assembleRelease
+npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest id.bundle --assets-dest android/app/src/main/res_backup/
+cd ./android && ./gradlew clean && rm -R C:\Users\roblanco\.gradle\caches\build-cache-1 && ./gradlew :app:bundleRelease && cd ..
+cd ./android && ./gradlew clean && rm -R C:\Users\roblanco\.gradle\caches\build-cache-1 && ./gradlew :app:assembleRelease && cd ..
 adb -s emulator-5554 reverse --remove tcp:8081
 adb kill-server
 adb -s emulator-5554 emu kill

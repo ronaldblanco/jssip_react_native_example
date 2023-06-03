@@ -44,6 +44,7 @@ cd ./android && ./gradlew clean && rm -R C:\Users\roblanco\.gradle\caches\build-
 adb -s emulator-5554 reverse --remove tcp:8081
 adb kill-server
 adb -s emulator-5554 emu kill
+.\gradlew signinReport
 ```
 To fix build problems or build only
 ```
